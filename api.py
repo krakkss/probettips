@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
-from probettips.history import upsert_ticket, load_history
+from probettips.history import load_history
 from probettips.supabase_store import SupabaseStore
 from probettips.telegram import send_message, format_message
 
@@ -36,7 +36,6 @@ def home():
 --card:#1e293b;
 --accent:#3b82f6;
 --green:#10b981;
---orange:#f59e0b;
 --red:#ef4444;
 --text:#e2e8f0;
 --muted:#94a3b8;
@@ -55,11 +54,7 @@ top:0;
 background:rgba(15,23,42,0.95);
 backdrop-filter:blur(16px);
 padding:18px 20px;
-display:flex;
-align-items:center;
-gap:14px;
 border-bottom:1px solid rgba(255,255,255,0.05);
-z-index:10;
 }
 
 .container{
@@ -71,7 +66,7 @@ margin:auto;
 .section-title{
 font-size:13px;
 color:var(--muted);
-margin:10px 0 6px;
+margin:14px 0 6px;
 }
 
 .stats{
@@ -146,12 +141,41 @@ font-size:11px;
 color:var(--muted);
 }
 
+canvas{
+width:100%;
+max-width:600px;
+margin-top:10px;
+}
+
 @media(max-width:600px){
 .stats{flex-direction:column;}
 }
 </style>
 
 <script>
+function drawEquity(data){
+const canvas=document.getElementById("equity");
+const ctx=canvas.getContext("2d");
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.strokeStyle="#3b82f6";
+ctx.lineWidth=2;
+ctx.beginPath();
+
+const min=Math.min(...data);
+const max=Math.max(...data);
+const range=max-min || 1;
+
+data.forEach((val,i)=>{
+const x=i*(canvas.width/(data.length-1));
+const y=canvas.height-((val-min)/range)*canvas.height;
+if(i===0)ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+});
+
+ctx.stroke();
+}
+
 async function loadHistory(days=null){
 document.getElementById("history").innerText="Cargando...";
 const res=await fetch("/history");
@@ -162,8 +186,6 @@ document.getElementById("history").innerText="No hay histórico.";
 return;
 }
 
-let wins=0;
-let losses=0;
 let filtered=data.slice().reverse();
 
 if(days){
@@ -172,9 +194,15 @@ cutoff.setDate(cutoff.getDate()-days);
 filtered=filtered.filter(x=>new Date(x.date)>=cutoff);
 }
 
+let wins=0;
+let losses=0;
+let equity=0;
+let equityCurve=[];
+
 filtered.forEach(x=>{
-if(x.status==="won") wins++;
-if(x.status==="lost") losses++;
+if(x.status==="won"){wins++;equity+=1;}
+if(x.status==="lost"){losses++;equity-=1;}
+equityCurve.push(equity);
 });
 
 const total=wins+losses;
@@ -184,6 +212,9 @@ const roi=total?(((wins-losses)/total)*100).toFixed(1):0;
 document.getElementById("stat-hit").innerText=hitRate+"%";
 document.getElementById("stat-total").innerText=total;
 document.getElementById("stat-roi").innerText=roi+"%";
+document.getElementById("stat-profit").innerText=equity+"u";
+
+drawEquity(equityCurve);
 
 let html="";
 filtered.forEach(x=>{
@@ -214,12 +245,7 @@ document.getElementById("history").innerHTML=html;
 <body>
 
 <div class="header">
-<div>
-<div style="font-weight:700;">ProBetTips</div>
-<div style="font-size:12px;color:var(--muted);">
-Personal Analytics Dashboard
-</div>
-</div>
+<div style="font-weight:700;">ProBetTips · Personal Control Panel</div>
 </div>
 
 <div class="container">
@@ -236,8 +262,12 @@ Personal Analytics Dashboard
 <div class="stat-value" id="stat-total">--</div>
 </div>
 <div class="stat">
-<div>ROI Estimado</div>
+<div>ROI</div>
 <div class="stat-value" id="stat-roi">--</div>
+</div>
+<div class="stat">
+<div>Profit (u)</div>
+<div class="stat-value" id="stat-profit">--</div>
 </div>
 </div>
 
@@ -245,21 +275,24 @@ Personal Analytics Dashboard
 
 <div class="buttons">
 <button onclick="loadHistory()">Todo</button>
-<button onclick="loadHistory(7)">Últimos 7 días</button>
-<button onclick="loadHistory(30)">Últimos 30 días</button>
+<button onclick="loadHistory(7)">7 días</button>
+<button onclick="loadHistory(30)">30 días</button>
 <button class="primary" onclick="fetch('/generate').then(r=>r.text()).then(t=>alert(t))">
 Generar Pick
 </button>
 </div>
 
+<div class="section-title">Equity Curve</div>
+<canvas id="equity" width="600" height="200"></canvas>
+
 <div class="section-title">Histórico</div>
 
 <div class="card" id="history">
-Pulsa un filtro para cargar histórico.
+Pulsa un filtro para cargar datos.
 </div>
 
 <div class="footer">
-Producto personal · No público
+Uso personal · Seguimiento estadístico del modelo
 </div>
 
 </div>
