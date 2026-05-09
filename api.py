@@ -32,124 +32,127 @@ def home():
 
 <style>
 :root{
---bg:#0f172a;
---card:#1e293b;
---accent:#3b82f6;
---green:#10b981;
---red:#ef4444;
---text:#e2e8f0;
---muted:#94a3b8;
+--bg:#0b0f14;
+--card:#121a22;
+--primary:#00ff88;
+--secondary:#00c26e;
+--danger:#ff3b3b;
+--text:#e6edf3;
+--muted:#7d8b99;
 }
 
 body{
 margin:0;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-background:linear-gradient(180deg,#0f172a 0%,#0b1220 100%);
+background:linear-gradient(180deg,#0b0f14 0%,#0f1720 100%);
 color:var(--text);
 }
 
 .header{
-position:sticky;
-top:0;
-background:rgba(15,23,42,0.95);
-backdrop-filter:blur(16px);
-padding:18px 20px;
-border-bottom:1px solid rgba(255,255,255,0.05);
+display:flex;
+align-items:center;
+gap:14px;
+padding:20px;
+border-bottom:1px solid #1c2732;
+}
+
+.logo{
+width:44px;
+height:44px;
+}
+
+.title{
+font-size:20px;
+font-weight:700;
+color:var(--primary);
 }
 
 .container{
-padding:22px;
-max-width:900px;
+padding:24px;
+max-width:1000px;
 margin:auto;
-}
-
-.section-title{
-font-size:13px;
-color:var(--muted);
-margin:14px 0 6px;
 }
 
 .stats{
 display:flex;
-gap:14px;
+gap:18px;
 flex-wrap:wrap;
-margin-bottom:20px;
+margin-bottom:25px;
 }
 
 .stat{
 background:var(--card);
-padding:18px;
+padding:22px;
 border-radius:16px;
 flex:1;
-min-width:160px;
+min-width:180px;
 text-align:center;
-box-shadow:0 6px 20px rgba(0,0,0,0.35);
+box-shadow:0 0 20px rgba(0,255,136,0.05);
+border:1px solid #1c2732;
 }
 
 .stat-value{
-font-size:22px;
-font-weight:700;
-margin-top:6px;
+font-size:26px;
+font-weight:800;
+margin-top:8px;
+color:var(--primary);
 }
 
 .buttons{
 display:flex;
-gap:12px;
+gap:14px;
 flex-wrap:wrap;
-margin-bottom:20px;
+margin-bottom:25px;
 }
 
 button{
-padding:12px 16px;
+padding:12px 18px;
 border-radius:14px;
 border:none;
-font-weight:600;
+font-weight:700;
 cursor:pointer;
 background:var(--card);
 color:var(--text);
+border:1px solid #1c2732;
 }
 
 button.primary{
-background:linear-gradient(135deg,#3b82f6,#2563eb);
-color:white;
+background:linear-gradient(135deg,var(--primary),var(--secondary));
+color:black;
+}
+
+button:hover{
+transform:translateY(-2px);
 }
 
 .card{
 background:var(--card);
-padding:20px;
+padding:22px;
 border-radius:18px;
-box-shadow:0 10px 30px rgba(0,0,0,0.4);
+border:1px solid #1c2732;
 }
 
 .history-item{
 padding:14px;
 border-radius:12px;
-background:#0f172a;
+background:#0e141b;
 margin-bottom:12px;
-}
-
-.history-top{
-display:flex;
-justify-content:space-between;
-font-size:14px;
+border-left:4px solid var(--primary);
 }
 
 .footer{
 text-align:center;
 margin-top:30px;
-font-size:11px;
+font-size:12px;
 color:var(--muted);
 }
 
 canvas{
 width:100%;
-max-width:600px;
-margin-top:10px;
+max-width:800px;
+margin-top:15px;
 }
 
-@media(max-width:600px){
-.stats{flex-direction:column;}
-}
 </style>
 
 <script>
@@ -158,13 +161,13 @@ const canvas=document.getElementById("equity");
 const ctx=canvas.getContext("2d");
 ctx.clearRect(0,0,canvas.width,canvas.height);
 
-ctx.strokeStyle="#3b82f6";
+ctx.strokeStyle="#00ff88";
 ctx.lineWidth=2;
 ctx.beginPath();
 
 const min=Math.min(...data);
 const max=Math.max(...data);
-const range=max-min || 1;
+const range=max-min||1;
 
 data.forEach((val,i)=>{
 const x=i*(canvas.width/(data.length-1));
@@ -172,22 +175,15 @@ const y=canvas.height-((val-min)/range)*canvas.height;
 if(i===0)ctx.moveTo(x,y);
 else ctx.lineTo(x,y);
 });
-
 ctx.stroke();
 }
 
 async function loadHistory(days=null){
-document.getElementById("history").innerText="Cargando...";
 const res=await fetch("/history");
 const data=await res.json();
-
-if(!data.length){
-document.getElementById("history").innerText="No hay histórico.";
-return;
-}
+if(!data.length){return;}
 
 let filtered=data.slice().reverse();
-
 if(days){
 const cutoff=new Date();
 cutoff.setDate(cutoff.getDate()-days);
@@ -219,14 +215,14 @@ drawEquity(equityCurve);
 let html="";
 filtered.forEach(x=>{
 const color=
-x.status==="won"?"#10b981":
-x.status==="lost"?"#ef4444":"#f59e0b";
+x.status==="won"?"#00ff88":
+x.status==="lost"?"#ff3b3b":"#ffaa00";
 
 html+=`
-<div class="history-item">
-<div class="history-top">
+<div class="history-item" style="border-left:4px solid ${color};">
+<div style="display:flex;justify-content:space-between;">
 <strong>${x.date}</strong>
-<span style="color:${color};font-weight:700;">
+<span style="color:${color};font-weight:800;">
 ${x.status.toUpperCase()}
 </span>
 </div>
@@ -238,6 +234,8 @@ ${x.source}
 
 document.getElementById("history").innerHTML=html;
 }
+
+window.onload=function(){loadHistory();}
 </script>
 
 </head>
@@ -245,12 +243,19 @@ document.getElementById("history").innerHTML=html;
 <body>
 
 <div class="header">
-<div style="font-weight:700;">ProBetTips · Personal Control Panel</div>
+<div class="logo">
+<svg viewBox="0 0 512 512">
+<rect width="512" height="512" rx="110" fill="#0b0f14"/>
+<polyline points="100,340 190,260 270,300 360,180 420,220"
+fill="none" stroke="#00ff88" stroke-width="28"
+stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="360" cy="180" r="20" fill="#00ff88"/>
+</svg>
+</div>
+<div class="title">ProBetTips</div>
 </div>
 
 <div class="container">
-
-<div class="section-title">Resumen</div>
 
 <div class="stats">
 <div class="stat">
@@ -271,8 +276,6 @@ document.getElementById("history").innerHTML=html;
 </div>
 </div>
 
-<div class="section-title">Filtros</div>
-
 <div class="buttons">
 <button onclick="loadHistory()">Todo</button>
 <button onclick="loadHistory(7)">7 días</button>
@@ -282,17 +285,12 @@ Generar Pick
 </button>
 </div>
 
-<div class="section-title">Equity Curve</div>
-<canvas id="equity" width="600" height="200"></canvas>
+<canvas id="equity" width="800" height="250"></canvas>
 
-<div class="section-title">Histórico</div>
-
-<div class="card" id="history">
-Pulsa un filtro para cargar datos.
-</div>
+<div class="card" id="history"></div>
 
 <div class="footer">
-Uso personal · Seguimiento estadístico del modelo
+Modelo privado · Dashboard personal estilo betting
 </div>
 
 </div>
