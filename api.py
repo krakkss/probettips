@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
 from probettips.history import load_history, upsert_ticket
@@ -168,12 +168,11 @@ width:100%;
 max-width:800px;
 margin-top:15px;
 }
-
 </style>
 
 <script>
 
-let lastGeneratedMessage = null;
+let lastGeneratedData = null;
 let alreadySent = false;
 
 async function generatePick(){
@@ -187,49 +186,48 @@ alreadySent=false;
 
 try{
 const res = await fetch("/generate");
-const text = await res.text();
+const data = await res.json();
 
-lastGeneratedMessage = text;
-
-/* Render tipo tabla igual que histórico */
-let html = "<div class='history-item'>";
-let totalOddsLine = "";
-
-const lines = text.split("\\n");
-
-lines.forEach(line => {
-
-if(line.includes("Cuota total")){
-totalOddsLine = `<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">${line}</div>`;
-}
-else if(line.includes("Cuota:")){
-// Intentamos separar partido del resto
-const parts = line.split("|");
-let match = "";
-let info = line;
-
-if(parts.length > 1){
-match = parts[0].trim();
-info = parts[1].trim();
+if(!data.picks || data.picks.length === 0){
+resultDiv.innerHTML="No hay picks disponibles hoy";
+return;
 }
 
-html += `
+lastGeneratedData = data;
+
+let html = `
+<div class="history-item">
+<div style="display:flex;justify-content:space-between;">
+<strong>${data.date}</strong>
+<span style="color:#00ff88;font-weight:800;">${data.tier || ""}</span>
+</div>
+`;
+
+let totalOdds = 1;
+
+data.picks.forEach(p=>{
+const odd=parseFloat(p.odds||1);
+if(!isNaN(odd)){ totalOdds*=odd; }
+
+html+=`
 <div class="pick-line">
-<strong>${match}</strong><br>
-${info}
+<strong>${p.match}</strong><br>
+${p.league} · ${p.market} · Cuota: ${p.odds}
 </div>`;
-}
-else if(line.trim() !== "" && !line.startsWith("Tip del Día")){
-html += `<div class="pick-line"><strong>${line}</strong></div>`;
-}
-
 });
 
-html += totalOddsLine;
-html += "</div>";
+if(data.picks.length>1){
+html+=`
+<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">
+Cuota total: ${totalOdds.toFixed(2)}
+</div>`;
+}
+
+html+="</div>";
 
 resultDiv.innerHTML = html;
 sendBtn.style.display="inline-block";
+
 }catch{
 resultDiv.innerHTML="Error generando pick.";
 }
@@ -250,7 +248,7 @@ resultDiv.innerHTML="Error actualizando resultados.";
 }
 
 async function sendToTelegram(){
-if(!lastGeneratedMessage || alreadySent) return;
+if(!lastGeneratedData || alreadySent) return;
 
 const sendBtn = document.getElementById("sendBtn");
 const resultDiv = document.getElementById("pickResult");
@@ -275,31 +273,7 @@ document.getElementById("stat-roi").innerText="0%";
 document.getElementById("stat-profit").innerText="0u";
 }
 
-function drawEquity(data){
-const canvas=document.getElementById("equity");
-const ctx=canvas.getContext("2d");
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-if(data.length<2){return;}
-
-ctx.strokeStyle="#00ff88";
-ctx.lineWidth=2;
-ctx.beginPath();
-
-const min=Math.min(...data);
-const max=Math.max(...data);
-const range=max-min||1;
-
-data.forEach((val,i)=>{
-const x=i*(canvas.width/(data.length-1));
-const y=canvas.height-((val-min)/range)*canvas.height;
-if(i===0)ctx.moveTo(x,y);
-else ctx.lineTo(x,y);
-});
-ctx.stroke();
-}
-
-async function loadHistory(days=null){
+async function loadHistory(){
 try{
 const res=await fetch("/history");
 const data=await res.json();
@@ -310,72 +284,14 @@ document.getElementById("history").innerText="No hay datos.";
 return;
 }
 
-let filtered=[...data].reverse();
-
-if(days){
-const cutoff=new Date();
-cutoff.setDate(cutoff.getDate()-days);
-filtered=filtered.filter(x=>{
-const d = x.tip_date || x.date;
-if(!d) return false;
-return new Date(d) >= cutoff;
-});
-}
-
-let wins=0;
-let losses=0;
-let equity=0;
-let equityCurve=[];
-
-filtered.forEach(x=>{
-const status = (x.status || "").toLowerCase();
-const result = (x.result || "").toLowerCase();
-
-if(status==="settled"){
-if(result==="win"){wins++;equity+=1;}
-if(result==="loss"){losses++;equity-=1;}
-}
-
-equityCurve.push(equity);
-});
-
-const total=filtered.length;
-const resolved=wins+losses;
-const hitRate=resolved?Math.round((wins/resolved)*100):0;
-const roi=total?(((wins-losses)/total)*100).toFixed(1):0;
-
-document.getElementById("stat-hit").innerText=hitRate+"%";
-document.getElementById("stat-total").innerText=total;
-document.getElementById("stat-roi").innerText=roi+"%";
-document.getElementById("stat-profit").innerText=equity+"u";
-
-drawEquity(equityCurve);
-
 let html="";
-filtered.forEach(x=>{
-const rawStatus=(x.status || "").toLowerCase();
-let label="Pendiente";
-let color="#ffaa00";
-
-if(rawStatus==="settled"){
-if((x.result || "").toLowerCase()==="win"){
-label="Ganada";
-color="#00ff88";
-}
-else if((x.result || "").toLowerCase()==="loss"){
-label="Perdida";
-color="#ff3b3b";
-}
-}
-
+data.slice().reverse().forEach(x=>{
 let picksHtml="";
 let totalOdds=1;
 
 if(x.picks){
-try{
 let parsed=typeof x.picks==="string"?JSON.parse(x.picks):x.picks;
 
-if(Array.isArray(parsed)){
 parsed.forEach(p=>{
 const odd=parseFloat(p.odds||1);
 if(!isNaN(odd)){ totalOdds*=odd; }
@@ -401,15 +317,10 @@ Cuota total: ${totalOdds.toFixed(2)}
 </div>`;
 }
 }
-}catch{}
-}
 
 html+=`
 <div class="history-item">
-<div style="display:flex;justify-content:space-between;">
-<strong>${x.tip_date || x.date || "-"}</strong>
-<span style="color:${color};font-weight:800;">${label}</span>
-</div>
+<strong>${x.tip_date || x.date}</strong>
 ${picksHtml}
 </div>`;
 });
@@ -418,12 +329,10 @@ document.getElementById("history").innerHTML=html;
 
 }catch{
 resetStats();
-document.getElementById("history").innerText="Error cargando datos.";
 }
 }
 
 window.onload=function(){loadHistory();}
-
 </script>
 </head>
 
@@ -444,23 +353,13 @@ window.onload=function(){loadHistory();}
 </div>
 
 <div class="buttons">
-<button onclick="loadHistory()">Todo</button>
-<button onclick="loadHistory(7)">7 días</button>
-<button onclick="loadHistory(30)">30 días</button>
 <button class="primary" onclick="generatePick()">Generar Pick</button>
 <button class="secondary" onclick="runSettlement()">Actualizar Resultados</button>
 <button id="sendBtn" style="display:none;" onclick="sendToTelegram()">Enviar a Telegram</button>
 </div>
 
 <div class="card" id="pickResult" style="display:none;"></div>
-
-<canvas id="equity" width="800" height="250"></canvas>
-
 <div class="card" id="history"></div>
-
-<div class="footer">
-Motor cuantitativo · Dashboard personal
-</div>
 
 </div>
 </body>
@@ -476,9 +375,31 @@ def generate():
         store,
         strategy="official",
     )
+
     if not picks:
-        return "No hay picks disponibles hoy"
-    return format_message(date_label, picks, tier)
+        return JSONResponse({"picks": []})
+
+    structured = []
+    for p in picks:
+        structured.append(
+            {
+                "match": p.get("match_label")
+                or p.get("match")
+                or p.get("fixture")
+                or "",
+                "league": p.get("league"),
+                "market": p.get("market"),
+                "odds": p.get("odds"),
+            }
+        )
+
+    return JSONResponse(
+        {
+            "date": date_label,
+            "tier": tier,
+            "picks": structured,
+        }
+    )
 
 
 @app.get("/send")
