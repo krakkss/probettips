@@ -33,8 +33,8 @@ def home():
             <style>
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background: linear-gradient(135deg, #0f172a, #1e293b);
-                    color: white;
+                    background: radial-gradient(circle at 20% 20%, #1e293b, #0f172a 60%);
+                    color: #e2e8f0;
                     margin: 0;
                     padding: 0;
                 }
@@ -45,11 +45,13 @@ def home():
                 }
                 h1 {
                     font-size: 42px;
-                    margin-bottom: 10px;
+                    margin-bottom: 5px;
+                    letter-spacing: -1px;
                 }
                 .subtitle {
-                    opacity: 0.7;
-                    margin-bottom: 30px;
+                    opacity: 0.6;
+                    margin-bottom: 35px;
+                    font-size: 15px;
                 }
                 .buttons {
                     display: grid;
@@ -59,30 +61,45 @@ def home():
                 }
                 button {
                     padding: 15px;
-                    border-radius: 10px;
+                    border-radius: 12px;
                     border: none;
-                    font-size: 15px;
+                    font-size: 14px;
                     font-weight: 600;
                     cursor: pointer;
                     transition: 0.2s ease;
+                    backdrop-filter: blur(10px);
                 }
-                .primary { background: #3b82f6; color: white; }
-                .success { background: #10b981; color: white; }
-                .warning { background: #f59e0b; color: white; }
-                .neutral { background: #334155; color: white; }
 
-                button:hover { transform: scale(1.05); }
+                .primary { background: linear-gradient(135deg,#3b82f6,#2563eb); }
+                .success { background: linear-gradient(135deg,#10b981,#059669); }
+                .warning { background: linear-gradient(135deg,#f59e0b,#d97706); }
+                .neutral { background: #334155; }
+
+                button:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+                }
 
                 .card {
-                    background: #1e293b;
-                    border-radius: 12px;
-                    padding: 20px;
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-                    min-height: 150px;
+                    background: rgba(30,41,59,0.9);
+                    border-radius: 16px;
+                    padding: 25px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+                    min-height: 180px;
                     white-space: pre-wrap;
+                    font-size: 14px;
+                    line-height: 1.5;
                 }
+
                 .loading {
-                    opacity: 0.6;
+                    opacity: 0.5;
+                }
+
+                .footer {
+                    margin-top: 40px;
+                    text-align: center;
+                    font-size: 12px;
+                    opacity: 0.5;
                 }
             </style>
             <script>
@@ -127,7 +144,11 @@ def home():
                 </div>
 
                 <div class="card" id="output">
-                    Aquí aparecerán los resultados...
+                    Sistema listo. Pulsa "Generar Pick Diario".
+                </div>
+
+                <div class="footer">
+                    ProBetTips AI • Engine v2 • Cloud Deployment
                 </div>
             </div>
         </body>
