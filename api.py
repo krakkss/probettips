@@ -388,15 +388,20 @@ def generate():
 
     structured = []
     for p in picks:
+        # p es un objeto Pick, no un dict
+        match_value = (
+            getattr(p, "match_label", None)
+            or getattr(p, "match", None)
+            or getattr(p, "fixture", None)
+            or ""
+        )
+
         structured.append(
             {
-                "match": p.get("match_label")
-                or p.get("match")
-                or p.get("fixture")
-                or "",
-                "league": p.get("league"),
-                "market": p.get("market"),
-                "odds": p.get("odds"),
+                "match": match_value,
+                "league": getattr(p, "league", None),
+                "market": getattr(p, "market", None),
+                "odds": getattr(p, "odds", None),
             }
         )
 
