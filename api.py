@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
 from probettips.history import load_history, upsert_ticket
@@ -20,6 +20,10 @@ TELEGRAM_CHAT_ID = get_env("TELEGRAM_CHAT_ID")
 
 store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+
+@app.get("/logo.png")
+def get_logo():
+    return FileResponse("logo.png")
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -325,8 +329,9 @@ window.onload=function(){loadHistory();}
 
 <body>
 
-<div class="header">
-ProBetTipsIA · Quant Betting Engine
+<div class="header" style="display:flex;align-items:center;gap:15px;">
+<img src="/logo.png" alt="Logo" style="height:40px;">
+<div>ProBetTipsIA · Quant Betting Engine</div>
 </div>
 
 <div class="container">
