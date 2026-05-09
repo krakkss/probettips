@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
-from probettips.history import load_history
+from probettips.history import load_history, upsert_ticket
 from probettips.supabase_store import SupabaseStore
 from probettips.telegram import send_message, format_message
 
@@ -108,12 +108,26 @@ background:linear-gradient(135deg,var(--primary),#00c26e);
 color:black;
 }
 
+button:disabled{
+opacity:0.5;
+cursor:not-allowed;
+}
+
 .card{
 background:var(--card);
 padding:22px;
 border-radius:18px;
 border:1px solid #1c2732;
 margin-bottom:20px;
+}
+
+.badge-success{
+margin-top:10px;
+padding:10px;
+border-radius:10px;
+background:#003d24;
+color:#00ff88;
+font-weight:700;
 }
 
 .history-item{
@@ -141,6 +155,7 @@ margin-top:15px;
 <script>
 
 let lastGeneratedMessage = null;
+let alreadySent = false;
 
 function resetStats(){
 document.getElementById("stat-hit").innerText="0%";
@@ -156,6 +171,8 @@ const sendBtn = document.getElementById("sendBtn");
 resultDiv.style.display="block";
 resultDiv.innerHTML="Generando pick... ⏳";
 sendBtn.style.display="none";
+sendBtn.disabled=false;
+alreadySent=false;
 
 try{
 const res = await fetch("/generate");
@@ -171,10 +188,23 @@ resultDiv.innerHTML="Error generando pick.";
 }
 
 async function sendToTelegram(){
-if(!lastGeneratedMessage) return;
+if(!lastGeneratedMessage || alreadySent) return;
+
+const sendBtn = document.getElementById("sendBtn");
+const resultDiv = document.getElementById("pickResult");
+
+sendBtn.disabled=true;
+sendBtn.innerText="Enviando...";
 
 await fetch("/send");
-alert("Enviado a Telegram ✅");
+
+alreadySent=true;
+
+sendBtn.innerText="Enviado ✅";
+
+resultDiv.innerHTML += "<div class='badge-success'>✅ Pick guardado en BD y enviado a Telegram</div>";
+
+loadHistory(); // refrescamos histórico automáticamente
 }
 
 function drawEquity(data){
@@ -271,33 +301,11 @@ color="#ff3b3b";
 }
 }
 
-let pickText="Sin detalle";
-
-if(x.picks){
-try{
-let parsed=typeof x.picks==="string"?JSON.parse(x.picks):x.picks;
-
-if(Array.isArray(parsed)){
-let totalOdds=1;
-const lines=parsed.map(p=>{
-const odd=parseFloat(p.odds||1);
-if(!isNaN(odd)) totalOdds*=odd;
-return `<div><strong>${p.league}</strong> · ${p.market} · Cuota: ${p.odds}</div>`;
-}).join("");
-
-pickText=lines+`<div style="margin-top:6px;font-weight:700;color:#00ff88;">Cuota total: ${totalOdds.toFixed(2)}</div>`;
-}
-}catch{}
-}
-
 html+=`
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
 <strong>${x.tip_date || x.date || "-"}</strong>
 <span style="color:${color};font-weight:800;">${label}</span>
-</div>
-<div style="font-size:13px;margin-top:6px;color:#cfd8dc;">
-${pickText}
 </div>
 </div>`;
 });
@@ -367,8 +375,6 @@ def generate():
     return format_message(date_label, picks, tier)
 
 
-from probettips.history import upsert_ticket
-
 @app.get("/send")
 def send():
     date_label, picks, source, tier, candidates = generate_daily_picks(
@@ -380,7 +386,6 @@ def send():
     if not picks:
         return "No hay picks para enviar"
 
-    # Guardamos en BD antes de enviar
     upsert_ticket(
         store,
         date_label,
@@ -394,7 +399,7 @@ def send():
     message = format_message(date_label, picks, tier)
     send_message(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
 
-    return "Guardado en BD y enviado a Telegram ✅"
+    return "OK"
 
 
 @app.get("/history")
