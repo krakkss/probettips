@@ -272,13 +272,30 @@ let parsed = typeof x.picks === "string" ? JSON.parse(x.picks) : x.picks;
 
 if (Array.isArray(parsed) && parsed.length > 0) {
 
-pickText = parsed.map(p => `
+let totalOdds = 1;
+
+const lines = parsed.map(p => {
+const odd = parseFloat(p.odds || 1);
+if (!isNaN(odd)) totalOdds *= odd;
+
+return `
 <div style="margin-bottom:4px;">
 <strong>${p.league || ""}</strong> · 
 ${p.market || ""} · 
 Cuota: ${p.odds || ""}
 </div>
-`).join("");
+`;
+}).join("");
+
+// Redondeamos a 2 decimales
+totalOdds = totalOdds.toFixed(2);
+
+pickText = `
+${lines}
+<div style="margin-top:6px;font-weight:700;color:#00ff88;">
+Cuota total: ${totalOdds}
+</div>
+`;
 
 } else if (typeof parsed === "object") {
 
