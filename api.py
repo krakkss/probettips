@@ -30,283 +30,267 @@ def home():
     <title>ProBetTips</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --accent: #3b82f6;
-            --green: #10b981;
-            --orange: #f59e0b;
-            --red: #ef4444;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-        }
+<style>
+:root{
+--bg:#0f172a;
+--card:#1e293b;
+--accent:#3b82f6;
+--green:#10b981;
+--orange:#f59e0b;
+--red:#ef4444;
+--text:#e2e8f0;
+--muted:#94a3b8;
+}
 
-        * { box-sizing: border-box; }
+*{box-sizing:border-box;}
 
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-            color: var(--text);
-        }
+body{
+margin:0;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+background:linear-gradient(180deg,#0f172a 0%,#0b1220 100%);
+color:var(--text);
+}
 
-        .header {
-            position: sticky;
-            top: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(16px);
-            padding: 18px 20px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            z-index: 10;
-        }
+.header{
+position:sticky;
+top:0;
+background:rgba(15,23,42,0.95);
+backdrop-filter:blur(16px);
+padding:18px 20px;
+display:flex;
+align-items:center;
+gap:14px;
+border-bottom:1px solid rgba(255,255,255,0.05);
+z-index:10;
+}
 
-        .logo { width: 38px; height: 38px; }
+.logo{width:40px;height:40px;}
 
-        .title { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
-        .subtitle { font-size: 12px; color: var(--muted); }
+.title{font-size:20px;font-weight:700;}
+.subtitle{font-size:12px;color:var(--muted);}
 
-        .container {
-            padding: 22px;
-            max-width: 900px;
-            margin: auto;
-        }
+.container{
+padding:22px;
+max-width:900px;
+margin:auto;
+}
 
-        .stats {
-            display: flex;
-            gap: 14px;
-            overflow-x: auto;
-            margin-bottom: 22px;
-        }
+.stats{
+display:flex;
+gap:14px;
+overflow-x:auto;
+margin-bottom:22px;
+}
 
-        .stat-card {
-            background: var(--card);
-            padding: 18px;
-            border-radius: 16px;
-            min-width: 150px;
-            text-align: center;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-            transition: 0.2s ease;
-        }
+.stat-card{
+background:var(--card);
+padding:20px;
+border-radius:18px;
+min-width:170px;
+text-align:center;
+box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
 
-        .stat-card:hover {
-            transform: translateY(-3px);
-        }
+.stat-title{font-size:11px;color:var(--muted);}
+.stat-value{font-size:22px;font-weight:700;margin-top:6px;}
 
-        .stat-title { font-size: 11px; color: var(--muted); }
-        .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.gauge{
+width:90px;
+height:90px;
+margin:10px auto 0;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:700;
+font-size:18px;
+color:white;
+background:conic-gradient(var(--green) 0deg, var(--green) 0deg, #1e293b 0deg);
+}
 
-        .buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 24px;
-        }
+.buttons{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:14px;
+margin-bottom:24px;
+}
 
-        button {
-            padding: 16px;
-            border-radius: 16px;
-            border: none;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-        }
+button{
+padding:16px;
+border-radius:16px;
+border:none;
+font-weight:700;
+font-size:14px;
+cursor:pointer;
+transition:all 0.15s ease;
+box-shadow:0 6px 18px rgba(0,0,0,0.35);
+}
 
-        .primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-        .success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-        .warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-        .neutral { background: var(--card); color: var(--text); }
+.primary{background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;}
+.success{background:linear-gradient(135deg,#10b981,#059669);color:white;}
+.warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
+.neutral{background:var(--card);color:var(--text);}
 
-        button:hover { transform: translateY(-2px); }
-        button:active { transform: scale(0.96); }
+button:hover{transform:translateY(-2px);}
+button:active{transform:scale(0.96);}
 
-        .card {
-            background: var(--card);
-            padding: 22px;
-            border-radius: 18px;
-            min-height: 160px;
-            line-height: 1.6;
-            box-shadow: 0 10px 28px rgba(0,0,0,0.4);
-            animation: fadeIn 0.3s ease;
-        }
+.card{
+background:var(--card);
+padding:22px;
+border-radius:20px;
+min-height:160px;
+box-shadow:0 10px 30px rgba(0,0,0,0.45);
+animation:fadeIn .3s ease;
+}
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(6px);}
+to{opacity:1;transform:translateY(0);}
+}
 
-        .spinner {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            width: 26px;
-            height: 26px;
-            animation: spin 0.8s linear infinite;
-            margin: auto;
-        }
+.spinner{
+border:3px solid rgba(255,255,255,0.1);
+border-top:3px solid var(--accent);
+border-radius:50%;
+width:26px;height:26px;
+animation:spin .8s linear infinite;
+margin:auto;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+@keyframes spin{to{transform:rotate(360deg);}}
 
-        .footer {
-            text-align: center;
-            margin-top: 34px;
-            font-size: 11px;
-            color: var(--muted);
-            opacity: 0.8;
-        }
+.footer{
+text-align:center;
+margin-top:36px;
+font-size:11px;
+color:var(--muted);
+}
 
-        @media (max-width: 600px) {
-            .buttons { grid-template-columns: 1fr; }
-        }
-    </style>
+canvas{margin-top:10px;}
 
-    <script>
-        function showSpinner() {
-            const output = document.getElementById("output");
-            output.innerHTML = "<div class='spinner'></div>";
-        }
+@media(max-width:600px){
+.buttons{grid-template-columns:1fr;}
+}
+</style>
 
-        async function callEndpoint(endpoint) {
-            showSpinner();
-            try {
-                const res = await fetch(endpoint);
-                const text = await res.text();
-                try {
-                    const json = JSON.parse(text);
-                    document.getElementById("output").innerText =
-                        JSON.stringify(json, null, 2);
-                } catch {
-                    document.getElementById("output").innerText = text;
-                }
-            } catch {
-                document.getElementById("output").innerText =
-                    "Error al ejecutar la acción.";
-            }
-        }
+<script>
+function showSpinner(){
+document.getElementById("output").innerHTML="<div class='spinner'></div>";
+}
 
-        async function loadHistory() {
-            showSpinner();
-            try {
-                const res = await fetch("/history");
-                const data = await res.json();
+function updateGauge(percent){
+const gauge=document.getElementById("gauge");
+const deg=percent*3.6;
+gauge.style.background=`conic-gradient(var(--green) 0deg ${deg}deg,#1e293b ${deg}deg 360deg)`;
+gauge.innerText=percent+"%";
+}
 
-                if (!data.length) {
-                    document.getElementById("output").innerText =
-                        "No hay histórico disponible.";
-                    return;
-                }
+function drawSparkline(data){
+const canvas=document.getElementById("spark");
+const ctx=canvas.getContext("2d");
+ctx.clearRect(0,0,canvas.width,canvas.height);
+ctx.strokeStyle="#3b82f6";
+ctx.lineWidth=2;
+ctx.beginPath();
+const step=canvas.width/(data.length-1);
+data.forEach((val,i)=>{
+const x=i*step;
+const y=canvas.height-(val*canvas.height);
+if(i===0)ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+});
+ctx.stroke();
+}
 
-                let wins = 0;
-                let losses = 0;
+async function loadHistory(){
+showSpinner();
+try{
+const res=await fetch("/history");
+const data=await res.json();
+if(!data.length){
+document.getElementById("output").innerText="No hay histórico.";
+return;
+}
 
-                let html = "";
-                data.slice().reverse().forEach(item => {
-                    if (item.status === "won") wins++;
-                    if (item.status === "lost") losses++;
+let wins=0;
+let losses=0;
+let performance=[];
 
-                    const color =
-                        item.status === "won" ? "#10b981" :
-                        item.status === "lost" ? "#ef4444" :
-                        "#f59e0b";
+data.forEach(item=>{
+if(item.status==="won"){wins++;performance.push(1);}
+if(item.status==="lost"){losses++;performance.push(0);}
+});
 
-                    html += `
-                        <div style="margin-bottom:16px; padding:16px; background:#0f172a; border-radius:14px;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <strong>${item.date}</strong>
-                                <span style="color:${color}; font-weight:700;">
-                                    ${item.status.toUpperCase()}
-                                </span>
-                            </div>
-                            <div style="font-size:12px; opacity:0.7; margin-top:6px;">
-                                ${item.source}
-                            </div>
-                        </div>
-                    `;
-                });
+const total=wins+losses;
+const hitRate=total?Math.round((wins/total)*100):0;
 
-                const total = wins + losses;
-                const hitRate = total ? Math.round((wins / total) * 100) : 0;
+updateGauge(hitRate);
+drawSparkline(performance);
 
-                document.getElementById("hitRate").innerText = hitRate + "%";
-                document.getElementById("totalPicks").innerText = total;
-                document.getElementById("wins").innerText = wins;
+document.getElementById("output").innerText="Histórico cargado correctamente.";
 
-                document.getElementById("output").innerHTML = html;
+}catch{
+document.getElementById("output").innerText="Error cargando historial.";
+}
+}
+</script>
 
-            } catch {
-                document.getElementById("output").innerText =
-                    "Error cargando historial.";
-            }
-        }
-    </script>
 </head>
 
 <body>
 
-    <div class="header">
-        <div class="logo">
-            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                <rect width="512" height="512" rx="110" fill="#0f172a"/>
-                <polyline 
-                    points="100,340 190,260 270,300 360,180 420,220" 
-                    fill="none" 
-                    stroke="#3b82f6" 
-                    stroke-width="28"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"/>
-                <circle cx="360" cy="180" r="20" fill="#10b981"/>
-            </svg>
-        </div>
-        <div>
-            <div class="title">ProBetTips</div>
-            <div class="subtitle">AI Betting Intelligence</div>
-        </div>
-    </div>
+<div class="header">
+<div class="logo">
+<svg viewBox="0 0 512 512">
+<rect width="512" height="512" rx="110" fill="#0f172a"/>
+<polyline points="100,340 190,260 270,300 360,180 420,220"
+fill="none" stroke="#3b82f6" stroke-width="28"
+stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="360" cy="180" r="20" fill="#10b981"/>
+</svg>
+</div>
+<div>
+<div class="title">ProBetTips</div>
+<div class="subtitle">AI Betting Intelligence</div>
+</div>
+</div>
 
-    <div class="container">
+<div class="container">
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-title">Hit Rate</div>
-                <div class="stat-value" id="hitRate">--</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-title">Picks</div>
-                <div class="stat-value" id="totalPicks">--</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-title">Wins</div>
-                <div class="stat-value" id="wins">--</div>
-            </div>
-        </div>
+<div class="stats">
 
-        <div class="buttons">
-            <button class="primary" onclick="callEndpoint('/generate')">🎯 Generar Pick</button>
-            <button class="success" onclick="callEndpoint('/save')">💾 Guardar</button>
-            <button class="warning" onclick="callEndpoint('/send')">📩 Telegram</button>
-            <button class="neutral" onclick="loadHistory()">📊 Historial</button>
-        </div>
+<div class="stat-card">
+<div class="stat-title">Hit Rate</div>
+<div class="gauge" id="gauge">--</div>
+</div>
 
-        <div class="card" id="output">
-            Sistema listo. Pulsa Historial para cargar métricas.
-        </div>
+<div class="stat-card">
+<div class="stat-title">Performance</div>
+<canvas id="spark" width="120" height="60"></canvas>
+</div>
 
-        <div class="footer">
-            © ProBetTips AI · Statistical Engine v2
-        </div>
+</div>
 
-    </div>
+<div class="buttons">
+<button class="primary" onclick="fetch('/generate').then(r=>r.text()).then(t=>document.getElementById('output').innerText=t)">🎯 Generar Pick</button>
+<button class="success" onclick="fetch('/save').then(r=>r.text()).then(t=>document.getElementById('output').innerText=t)">💾 Guardar</button>
+<button class="warning" onclick="fetch('/send').then(r=>r.text()).then(t=>document.getElementById('output').innerText=t)">📩 Telegram</button>
+<button class="neutral" onclick="loadHistory()">📊 Analizar</button>
+</div>
+
+<div class="card" id="output">
+Sistema listo. Pulsa Analizar para cargar métricas avanzadas.
+</div>
+
+<div class="footer">
+© ProBetTips AI · Advanced Analytics Dashboard
+</div>
+
+</div>
 
 </body>
 </html>
-    """
+"""
 
 
 @app.get("/generate")
@@ -333,7 +317,7 @@ def save():
     if not picks:
         return "No hay picks para guardar"
     upsert_ticket(store, date_label, source, picks, "official", tier, candidates)
-    return "Pick guardado en Supabase correctamente"
+    return "Pick guardado correctamente"
 
 
 @app.get("/send")
