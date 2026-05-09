@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Body, FastAPI
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from probettips.config import get_env, load_env_file
 from probettips.history import load_history, upsert_ticket
@@ -22,6 +22,29 @@ TELEGRAM_CHAT_ID = get_env("TELEGRAM_CHAT_ID")
 
 store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+FAVICON_SVG = """
+<svg width="64" height="64" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="profitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="100%" stop-color="#00c26e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="256" fill="#0b0f14"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#121a22" stroke-width="8"/>
+  <polyline
+    points="120,330 200,260 260,290 340,210 400,170"
+    fill="none"
+    stroke="url(#profitGrad)"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <polygon points="400,170 382,176 392,158" fill="#00ff88"/>
+  <circle cx="256" cy="256" r="45" fill="none" stroke="#00ff88" stroke-width="6"/>
+  <circle cx="256" cy="256" r="10" fill="#00ff88"/>
+</svg>
+""".strip()
+
 
 @app.get("/logo.png")
 def get_logo():
@@ -33,6 +56,11 @@ def get_favicon():
     return FileResponse("logo.png")
 
 
+@app.get("/favicon.svg")
+def get_favicon_svg():
+    return Response(content=FAVICON_SVG, media_type="image/svg+xml")
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -41,7 +69,9 @@ def home():
 <head>
 <title>ProBetTipsIA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/png" href="/favicon.ico">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+<link rel="shortcut icon" href="/favicon.svg?v=2">
+<link rel="apple-touch-icon" href="/logo.png">
 <style>
 body{background:#0b0f14;color:#e6edf3;font-family:Inter,Segoe UI,Arial,sans-serif;margin:0}
 .hero{display:flex;align-items:center;gap:18px;padding:30px 24px 18px;border-bottom:1px solid #1e2936}
@@ -50,51 +80,114 @@ body{background:#0b0f14;color:#e6edf3;font-family:Inter,Segoe UI,Arial,sans-seri
 .hero-subtitle{margin:8px 0 0;color:#94a3b8;font-size:14px}
 .page{padding:24px}
 .card{background:#121a22;padding:18px;border-radius:16px;margin-bottom:20px;border:1px solid #1b2632}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+.section-title h3{font-size:22px;margin:0}
+.section-note{font-size:12px;color:#7f93a8}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .stat{text-align:center;padding:18px 12px;background:#141d27;border-radius:14px;border:1px solid #1f2b37}
 .stat-label{font-size:13px;color:#9fb3c8;margin-bottom:10px}
 .stat-value{font-size:26px;font-weight:800;color:#00ff88}
+.stat-subvalue{font-size:12px;color:#7f93a8;margin-top:6px}
 button{margin:5px;padding:10px 14px;border-radius:8px;border:none;background:#1c2732;color:white;cursor:pointer}
 button.primary{background:#00ff88;color:black}
 button.secondary{background:#1f6feb}
 button:disabled{opacity:.45;cursor:not-allowed}
+.feature-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr);gap:18px;align-items:start;margin-top:18px}
+.daily-card{position:relative;overflow:hidden;background:linear-gradient(180deg,#121a22 0%,#0f151c 100%)}
+.daily-card:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:4px;background:linear-gradient(90deg,#00ff88 0%,#12b5ff 100%)}
+.daily-empty{padding:22px 0;color:#8fa4b8}
+.daily-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 8px}
+.daily-summary-box{background:#111922;border:1px solid #1b2a36;border-radius:12px;padding:12px}
+.daily-summary-label{font-size:11px;color:#7f93a8;text-transform:uppercase;letter-spacing:.06em}
+.daily-summary-value{font-size:20px;font-weight:800;color:#f8fafc;margin-top:4px}
+.toolbar{margin:20px 0 14px;display:flex;flex-wrap:wrap;gap:8px}
 .history-item{background:#0e141b;padding:16px;border-radius:12px;margin-bottom:12px;border:1px solid #18222c}
+.history-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.history-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.history-date{font-size:19px;font-weight:800}
+.history-summary{font-size:12px;color:#8fa4b8}
 .pick-line{font-size:13px;margin-top:6px}
-.toolbar{margin:20px 0 14px}
+.pick-line strong{display:block;font-size:14px;color:#f8fafc}
 .status{margin-top:10px;color:#9fb3c8;font-size:13px}
 .warning{color:#ffaa00;margin-top:8px}
-.strategy-tag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#1f2937;font-size:11px;color:#9fb3c8}
-h3{font-size:22px;margin:28px 0 14px}
+.status-banner{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1px solid #1a3342;background:#0d1a24;color:#c7d8e5;font-size:13px}
+.status-banner.alt{border-color:#564400;background:#241f0a;color:#f4e7ad}
+.status-banner.success{border-color:#1f5f43;background:#0d2b1d;color:#a7f3d0}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em}
+.badge.result-win{background:#133122;color:#79f2a7}
+.badge.result-loss{background:#35171b;color:#ff9eaa}
+.badge.result-pending{background:#1e293b;color:#cbd5e1}
+.badge.alt{background:#3a2f07;color:#f4e7ad}
 @media (max-width: 900px){
   .page{padding:16px}
   .hero{padding:20px 16px 14px}
   .hero-logo{width:58px;height:58px}
   .hero-title{font-size:22px}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .feature-grid{grid-template-columns:1fr}
+  .daily-summary{grid-template-columns:1fr}
 }
 </style>
 <script>
 let lastGeneratedData = null
 let activeFilterDays = null
 
+function isOfficialStrategy(strategy){
+  return !strategy || strategy === "official"
+}
+
+function getResultBadge(result){
+  if(result === "win"){
+    return "<span class='badge result-win'>✅ Acertado</span>"
+  }
+  if(result === "loss"){
+    return "<span class='badge result-loss'>❌ Fallado</span>"
+  }
+  return "<span class='badge result-pending'>⏳ Pendiente</span>"
+}
+
+function getAlternativeNotice(strategy){
+  if(isOfficialStrategy(strategy)){
+    return ""
+  }
+  return "<div class='status-banner alt'>Apuesta alternativa con valor. No es la recomendada oficial del dia, pero se guarda para comparar rendimiento.</div>"
+}
+
+function getTierLabel(data){
+  if(!data || !data.picks || data.picks.length === 0){
+    return "Sin pick"
+  }
+  return isOfficialStrategy(data.strategy) ? "Oficial" : "Alternativa"
+}
+
 function renderPickCard(data){
   if(!data || !data.picks || data.picks.length === 0){
-    return "<div class='history-item'><strong>No hay picks disponibles.</strong></div>"
+    return "<div class='daily-empty'><strong>No hay picks disponibles.</strong><div class='status-banner'>Hoy el algoritmo no ha encontrado una recomendacion suficientemente fuerte.</div></div>"
   }
 
-  let html = "<div class='history-item'>"
-  html += `<strong>${data.date}</strong>`
-  html += `<span class='strategy-tag'>${data.strategy || "official"}</span><br>`
+  let html = "<div class='history-item daily-card'>"
+  html += "<div class='history-header'>"
+  html += `<div><div class='history-date'>${data.date}</div><div class='history-summary'>Pick del dia</div></div>`
+  html += `<div class='history-meta'><span class='badge result-pending'>${getTierLabel(data)}</span></div>`
+  html += "</div>"
 
   if(data.warning){
-    html += `<div class='warning'>Aviso: ${data.warning}</div>`
+    html += `<div class='status-banner'>Aviso: ${data.warning}</div>`
   }
+
+  html += getAlternativeNotice(data.strategy)
 
   let total = 1
   data.picks.forEach(p => {
     total *= parseFloat(p.odds || 1)
     html += `<div class='pick-line'><strong>${p.match_label || p.match || ""}</strong><br>${p.league || ""} - ${p.market || ""} - Cuota: ${Number(p.odds || 1).toFixed(2)}</div>`
   })
+
+  html += "<div class='daily-summary'>"
+  html += `<div class='daily-summary-box'><div class='daily-summary-label'>Selecciones</div><div class='daily-summary-value'>${data.picks.length}</div></div>`
+  html += `<div class='daily-summary-box'><div class='daily-summary-label'>Cuota total</div><div class='daily-summary-value'>${total.toFixed(2)}</div></div>`
+  html += `<div class='daily-summary-box'><div class='daily-summary-label'>Estado</div><div class='daily-summary-value'>Pendiente</div></div>`
+  html += "</div>"
 
   if(data.picks.length > 1){
     html += `<div class='pick-line' style='color:#00ff88;font-weight:700'>Cuota total: ${total.toFixed(2)}</div>`
@@ -105,7 +198,12 @@ function renderPickCard(data){
 }
 
 function setStatus(message){
-  document.getElementById("status").innerText = message || ""
+  const target = document.getElementById("status")
+  if(!message){
+    target.innerHTML = ""
+    return
+  }
+  target.innerHTML = `<div class='status-banner success'>${message}</div>`
 }
 
 async function generatePick(){
@@ -188,9 +286,13 @@ async function loadHistory(days=null){
   const roi = total ? (((wins - losses) / total) * 100).toFixed(1) : 0
 
   document.getElementById("stat-hit").innerText = hit + "%"
+  document.getElementById("stat-hit-sub").innerText = `${wins} aciertos / ${resolved || 0} resueltos`
   document.getElementById("stat-total").innerText = total
+  document.getElementById("stat-total-sub").innerText = `${filtered.filter(x => (x.strategy || "official") === "official").length} oficiales en rango`
   document.getElementById("stat-roi").innerText = roi + "%"
+  document.getElementById("stat-roi-sub").innerText = "Balance del historico visible"
   document.getElementById("stat-profit").innerText = equity + "u"
+  document.getElementById("stat-profit-sub").innerText = "Unidades netas del tramo"
 
   let html = ""
   filtered.forEach(x => {
@@ -208,8 +310,16 @@ async function loadHistory(days=null){
 
     const tipDate = x.tip_date || x.date || ""
     const strategy = x.strategy || "official"
-    const result = x.result === "win" ? "✅" : (x.result === "loss" ? "❌" : "⏳")
-    html += `<div class='history-item'><strong>${tipDate}</strong><span class='strategy-tag'>${strategy}</span><span class='strategy-tag'>${result}</span>${picksHtml}</div>`
+    const badge = getResultBadge(x.result)
+    const title = isOfficialStrategy(strategy) ? "Pick oficial" : "Pick alternativo"
+    html += "<div class='history-item'>"
+    html += "<div class='history-header'>"
+    html += `<div><div class='history-date'>${tipDate}</div><div class='history-summary'>${title}</div></div>`
+    html += `<div class='history-meta'>${!isOfficialStrategy(strategy) ? "<span class='badge alt'>Con valor</span>" : ""}${badge}</div>`
+    html += "</div>"
+    html += getAlternativeNotice(strategy)
+    html += picksHtml
+    html += "</div>"
   })
 
   document.getElementById("history").innerHTML = html || "<div class='history-item'>Sin historico todavia.</div>"
@@ -230,11 +340,15 @@ window.onload = function(){ loadHistory() }
 
 <div class="page">
 <div class="card">
+  <div class="section-title">
+    <h3>Panel diario</h3>
+    <div class="section-note">Seguimiento rapido del rendimiento y del pick actual</div>
+  </div>
   <div class="stats">
-    <div class="stat"><div class="stat-label">Hit Rate</div><div class="stat-value" id="stat-hit">--</div></div>
-    <div class="stat"><div class="stat-label">Total Picks</div><div class="stat-value" id="stat-total">--</div></div>
-    <div class="stat"><div class="stat-label">ROI</div><div class="stat-value" id="stat-roi">--</div></div>
-    <div class="stat"><div class="stat-label">Profit (u)</div><div class="stat-value" id="stat-profit">--</div></div>
+    <div class="stat"><div class="stat-label">Hit Rate</div><div class="stat-value" id="stat-hit">--</div><div class="stat-subvalue" id="stat-hit-sub">--</div></div>
+    <div class="stat"><div class="stat-label">Total Picks</div><div class="stat-value" id="stat-total">--</div><div class="stat-subvalue" id="stat-total-sub">--</div></div>
+    <div class="stat"><div class="stat-label">ROI</div><div class="stat-value" id="stat-roi">--</div><div class="stat-subvalue" id="stat-roi-sub">--</div></div>
+    <div class="stat"><div class="stat-label">Profit (u)</div><div class="stat-value" id="stat-profit">--</div><div class="stat-subvalue" id="stat-profit-sub">--</div></div>
   </div>
 </div>
 
@@ -247,10 +361,32 @@ window.onload = function(){ loadHistory() }
   <button onclick="settleResults()">Actualizar Resultados</button>
 </div>
 
-<div id="pickResult" class="card"></div>
 <div id="status" class="status"></div>
 
-<h3>Historico</h3>
+<div class="feature-grid">
+  <div class="card">
+    <div class="section-title">
+      <h3>Pick del dia</h3>
+      <div class="section-note">Vista previa antes de publicar en Telegram</div>
+    </div>
+    <div id="pickResult"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">
+      <h3>Operacion</h3>
+      <div class="section-note">Flujo recomendado</div>
+    </div>
+    <div class="status-banner">1. Genera el pick del dia para revisar la salida del algoritmo.</div>
+    <div class="status-banner">2. Si te convence, pulsa enviar y lo guardaremos en BD y Telegram.</div>
+    <div class="status-banner">3. Mas tarde, actualiza resultados para liquidar los picks cerrados.</div>
+  </div>
+</div>
+
+<div class="section-title">
+  <h3>Historico</h3>
+  <div class="section-note">Comparativa de picks oficiales y alternativas con valor</div>
+</div>
 <div id="history"></div>
 </div>
 
