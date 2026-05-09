@@ -34,6 +34,7 @@ def home():
 <html>
 <head>
 <title>ProBetTipsIA</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -65,7 +66,7 @@ gap:20px;
 }
 
 .header img{
-height:110px;
+height:140px;
 }
 
 .container{
