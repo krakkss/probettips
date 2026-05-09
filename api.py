@@ -28,23 +28,108 @@ def home():
     return """
     <html>
         <head>
-            <title>ProBetTips Control Panel</title>
+            <title>ProBetTips Dashboard</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #0f172a, #1e293b);
+                    color: white;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    max-width: 900px;
+                    margin: auto;
+                    padding: 40px 20px;
+                }
+                h1 {
+                    font-size: 42px;
+                    margin-bottom: 10px;
+                }
+                .subtitle {
+                    opacity: 0.7;
+                    margin-bottom: 30px;
+                }
+                .buttons {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 15px;
+                    margin-bottom: 30px;
+                }
+                button {
+                    padding: 15px;
+                    border-radius: 10px;
+                    border: none;
+                    font-size: 15px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: 0.2s ease;
+                }
+                .primary { background: #3b82f6; color: white; }
+                .success { background: #10b981; color: white; }
+                .warning { background: #f59e0b; color: white; }
+                .neutral { background: #334155; color: white; }
+
+                button:hover { transform: scale(1.05); }
+
+                .card {
+                    background: #1e293b;
+                    border-radius: 12px;
+                    padding: 20px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                    min-height: 150px;
+                    white-space: pre-wrap;
+                }
+                .loading {
+                    opacity: 0.6;
+                }
+            </style>
+            <script>
+                async function callEndpoint(endpoint) {
+                    const output = document.getElementById("output");
+                    output.innerText = "Cargando...";
+                    output.classList.add("loading");
+                    try {
+                        const res = await fetch(endpoint);
+                        const text = await res.text();
+                        try {
+                            const json = JSON.parse(text);
+                            output.innerText = JSON.stringify(json, null, 2);
+                        } catch {
+                            output.innerText = text;
+                        }
+                    } catch (err) {
+                        output.innerText = "Error: " + err;
+                    }
+                    output.classList.remove("loading");
+                }
+            </script>
         </head>
-        <body style="font-family: Arial; padding:40px;">
-            <h1>ProBetTips</h1>
-            <button onclick="fetch('/generate').then(r=>r.text()).then(t=>document.getElementById('out').innerText=t)">
-                Generar Pick Diario
-            </button>
-            <button onclick="fetch('/save').then(r=>r.text()).then(t=>document.getElementById('out').innerText=t)">
-                Guardar en BD
-            </button>
-            <button onclick="fetch('/send').then(r=>r.text()).then(t=>document.getElementById('out').innerText=t)">
-                Enviar a Telegram
-            </button>
-            <button onclick="fetch('/history').then(r=>r.text()).then(t=>document.getElementById('out').innerText=t)">
-                Ver Histórico
-            </button>
-            <pre id="out" style="margin-top:20px; background:#f4f4f4; padding:20px;"></pre>
+        <body>
+            <div class="container">
+                <h1>ProBetTips</h1>
+                <div class="subtitle">AI Betting Dashboard</div>
+
+                <div class="buttons">
+                    <button class="primary" onclick="callEndpoint('/generate')">
+                        Generar Pick Diario
+                    </button>
+                    <button class="success" onclick="callEndpoint('/save')">
+                        Guardar en BD
+                    </button>
+                    <button class="warning" onclick="callEndpoint('/send')">
+                        Enviar a Telegram
+                    </button>
+                    <button class="neutral" onclick="callEndpoint('/history')">
+                        Ver Histórico
+                    </button>
+                </div>
+
+                <div class="card" id="output">
+                    Aquí aparecerán los resultados...
+                </div>
+            </div>
         </body>
     </html>
     """
