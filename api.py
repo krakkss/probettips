@@ -320,13 +320,32 @@ color="#ff3b3b";
 }
 
 let picksHtml="";
+let totalOdds=1;
+
 if(x.picks){
 try{
 let parsed=typeof x.picks==="string"?JSON.parse(x.picks):x.picks;
+
 if(Array.isArray(parsed)){
 parsed.forEach(p=>{
-picksHtml+=`<div class="pick-line"><strong>${p.league}</strong> · ${p.market} · Cuota: ${p.odds}</div>`;
+const odd=parseFloat(p.odds||1);
+if(!isNaN(odd)){ totalOdds*=odd; }
+
+const match = p.match || p.game || p.fixture || (p.home && p.away ? p.home + " vs " + p.away : "");
+
+picksHtml+=`
+<div class="pick-line">
+<strong>${match}</strong><br>
+${p.league} · ${p.market} · Cuota: ${p.odds}
+</div>`;
 });
+
+if(parsed.length>1){
+picksHtml+=`
+<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">
+Cuota total: ${totalOdds.toFixed(2)}
+</div>`;
+}
 }
 }catch{}
 }
