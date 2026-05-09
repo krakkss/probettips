@@ -263,10 +263,34 @@ label="Perdida";
 color="#ff3b3b";
 }
 
-// Intentamos mostrar el pick si existe
-const pickText = x.picks 
-? JSON.stringify(x.picks).slice(0,60) 
-: (x.source || "Sin detalle");
+/* Formateamos el pick de forma legible */
+let pickText = "Sin detalle";
+
+if (x.picks) {
+try {
+let parsed = typeof x.picks === "string" ? JSON.parse(x.picks) : x.picks;
+
+// Si es array mostramos el primero
+if (Array.isArray(parsed) && parsed.length > 0) {
+const p = parsed[0];
+pickText = `
+<strong>${p.league || ""}</strong> · 
+${p.market || ""} · 
+Cuota: ${p.odds || ""}
+`;
+} else if (typeof parsed === "object") {
+pickText = `
+<strong>${parsed.league || ""}</strong> · 
+${parsed.market || ""} · 
+Cuota: ${parsed.odds || ""}
+`;
+}
+} catch(e) {
+pickText = x.source || "Sin detalle";
+}
+} else {
+pickText = x.source || "Sin detalle";
+}
 
 html+=`
 <div class="history-item">
