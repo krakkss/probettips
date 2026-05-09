@@ -6,7 +6,7 @@ from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
 from probettips.history import load_history
 from probettips.supabase_store import SupabaseStore
-from probettips.telegram import send_message, format_message
+from probettips.telegram import format_message
 
 load_env_file()
 
@@ -15,8 +15,6 @@ app = FastAPI(title="ProBetTips API")
 SUPABASE_URL = get_env("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = get_env("SUPABASE_SERVICE_ROLE_KEY")
 FOOTBALL_DATA_API_TOKEN = get_env("FOOTBALL_DATA_API_TOKEN")
-TELEGRAM_BOT_TOKEN = get_env("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = get_env("TELEGRAM_CHAT_ID")
 
 store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -27,7 +25,7 @@ def home():
 <!DOCTYPE html>
 <html>
 <head>
-<title>ProBetTips</title>
+<title>ProBetTipsIA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -35,7 +33,6 @@ def home():
 --bg:#0b0f14;
 --card:#121a22;
 --primary:#00ff88;
---secondary:#00c26e;
 --danger:#ff3b3b;
 --text:#e6edf3;
 --muted:#7d8b99;
@@ -49,21 +46,10 @@ color:var(--text);
 }
 
 .header{
-display:flex;
-align-items:center;
-gap:14px;
-padding:20px;
+padding:22px;
 border-bottom:1px solid #1c2732;
-}
-
-.logo{
-width:44px;
-height:44px;
-}
-
-.title{
+font-weight:800;
 font-size:20px;
-font-weight:700;
 color:var(--primary);
 }
 
@@ -87,7 +73,6 @@ border-radius:16px;
 flex:1;
 min-width:180px;
 text-align:center;
-box-shadow:0 0 20px rgba(0,255,136,0.05);
 border:1px solid #1c2732;
 }
 
@@ -117,12 +102,8 @@ border:1px solid #1c2732;
 }
 
 button.primary{
-background:linear-gradient(135deg,var(--primary),var(--secondary));
+background:linear-gradient(135deg,var(--primary),#00c26e);
 color:black;
-}
-
-button:hover{
-transform:translateY(-2px);
 }
 
 .card{
@@ -137,7 +118,6 @@ padding:14px;
 border-radius:12px;
 background:#0e141b;
 margin-bottom:12px;
-border-left:4px solid var(--primary);
 }
 
 .footer{
@@ -156,10 +136,19 @@ margin-top:15px;
 </style>
 
 <script>
+function resetStats(){
+document.getElementById("stat-hit").innerText="0%";
+document.getElementById("stat-total").innerText="0";
+document.getElementById("stat-roi").innerText="0%";
+document.getElementById("stat-profit").innerText="0u";
+}
+
 function drawEquity(data){
 const canvas=document.getElementById("equity");
 const ctx=canvas.getContext("2d");
 ctx.clearRect(0,0,canvas.width,canvas.height);
+
+if(data.length<2){return;}
 
 ctx.strokeStyle="#00ff88";
 ctx.lineWidth=2;
@@ -179,15 +168,25 @@ ctx.stroke();
 }
 
 async function loadHistory(days=null){
+try{
 const res=await fetch("/history");
 const data=await res.json();
-if(!data.length){return;}
 
-let filtered=data.slice().reverse();
+if(!Array.isArray(data) || data.length===0){
+resetStats();
+document.getElementById("history").innerText="No hay datos en base de datos.";
+return;
+}
+
+let filtered=[...data].reverse();
+
 if(days){
 const cutoff=new Date();
 cutoff.setDate(cutoff.getDate()-days);
-filtered=filtered.filter(x=>new Date(x.date)>=cutoff);
+filtered=filtered.filter(x=>{
+if(!x.date) return false;
+return new Date(x.date)>=cutoff;
+});
 }
 
 let wins=0;
@@ -219,20 +218,22 @@ x.status==="won"?"#00ff88":
 x.status==="lost"?"#ff3b3b":"#ffaa00";
 
 html+=`
-<div class="history-item" style="border-left:4px solid ${color};">
+<div class="history-item">
 <div style="display:flex;justify-content:space-between;">
-<strong>${x.date}</strong>
+<strong>${x.date || "-"}</strong>
 <span style="color:${color};font-weight:800;">
-${x.status.toUpperCase()}
+${(x.status || "-").toUpperCase()}
 </span>
-</div>
-<div style="font-size:12px;color:var(--muted);margin-top:4px;">
-${x.source}
 </div>
 </div>`;
 });
 
 document.getElementById("history").innerHTML=html;
+
+}catch(err){
+resetStats();
+document.getElementById("history").innerText="Error cargando datos.";
+}
 }
 
 window.onload=function(){loadHistory();}
@@ -243,16 +244,7 @@ window.onload=function(){loadHistory();}
 <body>
 
 <div class="header">
-<div class="logo">
-<svg viewBox="0 0 512 512">
-<rect width="512" height="512" rx="110" fill="#0b0f14"/>
-<polyline points="100,340 190,260 270,300 360,180 420,220"
-fill="none" stroke="#00ff88" stroke-width="28"
-stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="360" cy="180" r="20" fill="#00ff88"/>
-</svg>
-</div>
-<div class="title">ProBetTips</div>
+ProBetTipsIA · Quant Betting Engine
 </div>
 
 <div class="container">
@@ -290,7 +282,7 @@ Generar Pick
 <div class="card" id="history"></div>
 
 <div class="footer">
-Modelo privado · Dashboard personal estilo betting
+Motor cuantitativo · Dashboard personal
 </div>
 
 </div>
