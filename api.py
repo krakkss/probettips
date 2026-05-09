@@ -199,7 +199,9 @@ let html = `
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
 <strong>${data.date}</strong>
-<span style="color:#00ff88;font-weight:800;">${data.tier || ""}</span>
+<span style="color:#00ff88;font-weight:800;">
+${data.tier === "strong_combo" ? "🔥 Combinada Fuerte" : (data.tier || "")}
+</span>
 </div>
 `;
 
@@ -366,6 +368,9 @@ window.onload=function(){loadHistory();}
 </div>
 
 <div class="card" id="pickResult" style="display:none;"></div>
+<div style="margin-top:30px;margin-bottom:10px;font-weight:800;font-size:18px;color:#00ff88;">
+📊 Histórico
+</div>
 <div class="card" id="history"></div>
 
 </div>
