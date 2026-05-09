@@ -7,6 +7,7 @@ from probettips.service import generate_daily_picks
 from probettips.history import load_history, upsert_ticket
 from probettips.supabase_store import SupabaseStore
 from probettips.telegram import send_message, format_message
+import json
 
 load_env_file()
 
@@ -24,6 +25,7 @@ store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 @app.get("/logo.png")
 def get_logo():
     return FileResponse("logo.png")
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -57,6 +59,13 @@ border-bottom:1px solid #1c2732;
 font-weight:800;
 font-size:20px;
 color:var(--primary);
+display:flex;
+align-items:center;
+gap:20px;
+}
+
+.header img{
+height:110px;
 }
 
 .container{
@@ -112,11 +121,6 @@ background:linear-gradient(135deg,var(--primary),#00c26e);
 color:black;
 }
 
-button:disabled{
-opacity:0.5;
-cursor:not-allowed;
-}
-
 .card{
 background:var(--card);
 padding:22px;
@@ -125,20 +129,17 @@ border:1px solid #1c2732;
 margin-bottom:20px;
 }
 
-.badge-success{
-margin-top:10px;
-padding:10px;
-border-radius:10px;
-background:#003d24;
-color:#00ff88;
-font-weight:700;
-}
-
 .history-item{
 padding:14px;
 border-radius:12px;
 background:#0e141b;
 margin-bottom:12px;
+}
+
+.pick-line{
+margin-top:6px;
+font-size:13px;
+color:#cfd8dc;
 }
 
 .footer{
@@ -158,57 +159,11 @@ margin-top:15px;
 
 <script>
 
-let lastGeneratedMessage = null;
-let alreadySent = false;
-
 function resetStats(){
 document.getElementById("stat-hit").innerText="0%";
 document.getElementById("stat-total").innerText="0";
 document.getElementById("stat-roi").innerText="0%";
 document.getElementById("stat-profit").innerText="0u";
-}
-
-async function generatePick(){
-const resultDiv = document.getElementById("pickResult");
-const sendBtn = document.getElementById("sendBtn");
-
-resultDiv.style.display="block";
-resultDiv.innerHTML="Generando pick... ⏳";
-sendBtn.style.display="none";
-sendBtn.disabled=false;
-alreadySent=false;
-
-try{
-const res = await fetch("/generate");
-const text = await res.text();
-
-lastGeneratedMessage = text;
-
-resultDiv.innerHTML = "<pre style='white-space:pre-wrap'>" + text + "</pre>";
-sendBtn.style.display="inline-block";
-}catch{
-resultDiv.innerHTML="Error generando pick.";
-}
-}
-
-async function sendToTelegram(){
-if(!lastGeneratedMessage || alreadySent) return;
-
-const sendBtn = document.getElementById("sendBtn");
-const resultDiv = document.getElementById("pickResult");
-
-sendBtn.disabled=true;
-sendBtn.innerText="Enviando...";
-
-await fetch("/send");
-
-alreadySent=true;
-
-sendBtn.innerText="Enviado ✅";
-
-resultDiv.innerHTML += "<div class='badge-success'>✅ Pick guardado en BD y enviado a Telegram</div>";
-
-loadHistory(); // refrescamos histórico automáticamente
 }
 
 function drawEquity(data){
@@ -242,7 +197,7 @@ const data=await res.json();
 
 if(!Array.isArray(data) || data.length===0){
 resetStats();
-document.getElementById("history").innerText="No hay datos en base de datos.";
+document.getElementById("history").innerText="No hay datos.";
 return;
 }
 
@@ -290,7 +245,6 @@ drawEquity(equityCurve);
 let html="";
 filtered.forEach(x=>{
 const rawStatus=(x.status || "").toLowerCase();
-
 let label="Pendiente";
 let color="#ffaa00";
 
@@ -305,12 +259,25 @@ color="#ff3b3b";
 }
 }
 
+let picksHtml="";
+if(x.picks){
+try{
+let parsed=typeof x.picks==="string"?JSON.parse(x.picks):x.picks;
+if(Array.isArray(parsed)){
+parsed.forEach(p=>{
+picksHtml+=`<div class="pick-line"><strong>${p.league}</strong> · ${p.market} · Cuota: ${p.odds}</div>`;
+});
+}
+}catch{}
+}
+
 html+=`
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
 <strong>${x.tip_date || x.date || "-"}</strong>
 <span style="color:${color};font-weight:800;">${label}</span>
 </div>
+${picksHtml}
 </div>`;
 });
 
@@ -329,8 +296,8 @@ window.onload=function(){loadHistory();}
 
 <body>
 
-<div class="header" style="display:flex;align-items:center;gap:15px;">
-<img src="/logo.png" alt="Logo" style="height:40px;">
+<div class="header">
+<img src="/logo.png" alt="Logo">
 <div>ProBetTipsIA · Quant Betting Engine</div>
 </div>
 
@@ -347,11 +314,7 @@ window.onload=function(){loadHistory();}
 <button onclick="loadHistory()">Todo</button>
 <button onclick="loadHistory(7)">7 días</button>
 <button onclick="loadHistory(30)">30 días</button>
-<button class="primary" onclick="generatePick()">Generar Pick</button>
-<button id="sendBtn" style="display:none;" onclick="sendToTelegram()">Enviar a Telegram</button>
 </div>
-
-<div class="card" id="pickResult" style="display:none;"></div>
 
 <canvas id="equity" width="800" height="250"></canvas>
 
