@@ -122,9 +122,8 @@ background:linear-gradient(135deg,var(--primary),#00c26e);
 color:black;
 }
 
-button:disabled{
-opacity:0.6;
-cursor:not-allowed;
+button.secondary{
+background:#1c2732;
 }
 
 .card{
@@ -184,7 +183,6 @@ const sendBtn = document.getElementById("sendBtn");
 resultDiv.style.display="block";
 resultDiv.innerHTML="Generando pick... ⏳";
 sendBtn.style.display="none";
-sendBtn.disabled=false;
 alreadySent=false;
 
 try{
@@ -193,37 +191,61 @@ const text = await res.text();
 
 lastGeneratedMessage = text;
 
-/* Convertimos el texto del bot al mismo formato visual del histórico */
-let formattedHtml = "";
-let totalOdds = 1;
+/* Render tipo tabla igual que histórico */
+let html = "<div class='history-item'>";
+let totalOddsLine = "";
 
 const lines = text.split("\\n");
 
 lines.forEach(line => {
 
 if(line.includes("Cuota total")){
-formattedHtml += `<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">${line}</div>`;
+totalOddsLine = `<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">${line}</div>`;
 }
 else if(line.includes("Cuota:")){
-// Extraemos cuota para calcular total si no viene ya
-const match = line.match(/Cuota:\\s*([0-9.]+)/);
-if(match){
-const odd = parseFloat(match[1]);
-if(!isNaN(odd)){ totalOdds *= odd; }
+// Intentamos separar partido del resto
+const parts = line.split("|");
+let match = "";
+let info = line;
+
+if(parts.length > 1){
+match = parts[0].trim();
+info = parts[1].trim();
 }
 
-formattedHtml += `<div class="pick-line">${line}</div>`;
+html += `
+<div class="pick-line">
+<strong>${match}</strong><br>
+${info}
+</div>`;
 }
-else if(line.trim() !== ""){
-formattedHtml += `<div class="pick-line"><strong>${line}</strong></div>`;
+else if(line.trim() !== "" && !line.startsWith("Tip del Día")){
+html += `<div class="pick-line"><strong>${line}</strong></div>`;
 }
 
 });
 
-resultDiv.innerHTML = formattedHtml;
+html += totalOddsLine;
+html += "</div>";
+
+resultDiv.innerHTML = html;
 sendBtn.style.display="inline-block";
 }catch{
 resultDiv.innerHTML="Error generando pick.";
+}
+}
+
+async function runSettlement(){
+const resultDiv = document.getElementById("pickResult");
+resultDiv.style.display="block";
+resultDiv.innerHTML="Actualizando resultados... ⏳";
+
+try{
+await fetch("/settle");
+resultDiv.innerHTML="<div class='badge-success'>✅ Resultados actualizados correctamente</div>";
+loadHistory();
+}catch{
+resultDiv.innerHTML="Error actualizando resultados.";
 }
 }
 
@@ -358,7 +380,12 @@ parsed.forEach(p=>{
 const odd=parseFloat(p.odds||1);
 if(!isNaN(odd)){ totalOdds*=odd; }
 
-const match = p.match || p.game || p.fixture || (p.home && p.away ? p.home + " vs " + p.away : "");
+const match =
+    p.match_label ||
+    p.match ||
+    p.game ||
+    p.fixture ||
+    (p.home && p.away ? p.home + " vs " + p.away : "");
 
 picksHtml+=`
 <div class="pick-line">
@@ -421,6 +448,7 @@ window.onload=function(){loadHistory();}
 <button onclick="loadHistory(7)">7 días</button>
 <button onclick="loadHistory(30)">30 días</button>
 <button class="primary" onclick="generatePick()">Generar Pick</button>
+<button class="secondary" onclick="runSettlement()">Actualizar Resultados</button>
 <button id="sendBtn" style="display:none;" onclick="sendToTelegram()">Enviar a Telegram</button>
 </div>
 
@@ -483,3 +511,15 @@ def send():
 @app.get("/history")
 def history():
     return load_history(store)
+
+
+@app.get("/settle")
+def settle_pending():
+    from probettips.settlement import settle_pending_tickets
+
+    settle_pending_tickets(
+        store=store,
+        api_token=FOOTBALL_DATA_API_TOKEN,
+    )
+
+    return {"status": "settlement executed"}
