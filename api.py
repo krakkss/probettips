@@ -193,7 +193,34 @@ const text = await res.text();
 
 lastGeneratedMessage = text;
 
-resultDiv.innerHTML = "<pre style='white-space:pre-wrap'>" + text + "</pre>";
+/* Convertimos el texto del bot al mismo formato visual del histórico */
+let formattedHtml = "";
+let totalOdds = 1;
+
+const lines = text.split("\\n");
+
+lines.forEach(line => {
+
+if(line.includes("Cuota total")){
+formattedHtml += `<div class="pick-line" style="margin-top:8px;font-weight:700;color:#00ff88;">${line}</div>`;
+}
+else if(line.includes("Cuota:")){
+// Extraemos cuota para calcular total si no viene ya
+const match = line.match(/Cuota:\\s*([0-9.]+)/);
+if(match){
+const odd = parseFloat(match[1]);
+if(!isNaN(odd)){ totalOdds *= odd; }
+}
+
+formattedHtml += `<div class="pick-line">${line}</div>`;
+}
+else if(line.trim() !== ""){
+formattedHtml += `<div class="pick-line"><strong>${line}</strong></div>`;
+}
+
+});
+
+resultDiv.innerHTML = formattedHtml;
 sendBtn.style.display="inline-block";
 }catch{
 resultDiv.innerHTML="Error generando pick.";
