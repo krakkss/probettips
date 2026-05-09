@@ -25,23 +25,36 @@ store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 FAVICON_SVG = """
 <svg width="64" height="64" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="profitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00ff88"/>
-      <stop offset="100%" stop-color="#00c26e"/>
+      <stop offset="100%" stop-color="#7fffe0"/>
     </linearGradient>
   </defs>
   <circle cx="256" cy="256" r="256" fill="#0b0f14"/>
-  <circle cx="256" cy="256" r="200" fill="none" stroke="#121a22" stroke-width="8"/>
-  <polyline
-    points="120,330 200,260 260,290 340,210 400,170"
-    fill="none"
-    stroke="url(#profitGrad)"
-    stroke-width="20"
-    stroke-linecap="round"
-    stroke-linejoin="round"/>
-  <polygon points="400,170 382,176 392,158" fill="#00ff88"/>
-  <circle cx="256" cy="256" r="45" fill="none" stroke="#00ff88" stroke-width="6"/>
-  <circle cx="256" cy="256" r="10" fill="#00ff88"/>
+  <g stroke="url(#brandGrad)" stroke-width="18" stroke-linecap="round" fill="none">
+    <path d="M130 322a150 150 0 0 1 120-188"/>
+    <path d="M182 382a178 178 0 0 1-7-228"/>
+    <path d="M333 135a171 171 0 0 1 47 17"/>
+    <path d="M397 176a180 180 0 0 1 5 163"/>
+    <path d="M190 412a175 175 0 0 0 80 19"/>
+    <path d="M271 402v46"/>
+  </g>
+  <g fill="url(#brandGrad)">
+    <circle cx="129" cy="323" r="18"/>
+    <circle cx="174" cy="155" r="18"/>
+    <circle cx="332" cy="133" r="18"/>
+    <circle cx="396" cy="175" r="18"/>
+    <circle cx="189" cy="412" r="18"/>
+    <circle cx="271" cy="448" r="18"/>
+  </g>
+  <circle cx="256" cy="256" r="118" fill="url(#brandGrad)"/>
+  <g fill="#0b0f14">
+    <polygon points="256,180 291,204 291,248 256,272 221,248 221,204"/>
+    <polygon points="186,228 219,248 213,292 173,309 148,270 161,236"/>
+    <polygon points="326,248 359,228 384,236 397,270 372,309 332,292"/>
+    <polygon points="235,302 277,302 297,338 276,377 236,377 215,338"/>
+  </g>
+  <circle cx="256" cy="256" r="118" fill="none" stroke="#0b0f14" stroke-width="12"/>
 </svg>
 """.strip()
 
@@ -216,6 +229,14 @@ async function generatePick(){
   setStatus(lastGeneratedData ? "Pick generado. Ya puedes enviarlo a Telegram." : "No hay picks disponibles para hoy.")
 }
 
+async function initializeDashboard(){
+  setStatus("Cargando pick del dia...")
+  await Promise.all([
+    loadHistory(),
+    generatePick(),
+  ])
+}
+
 async function sendPick(){
   if(!lastGeneratedData){
     setStatus("Genera un pick antes de enviarlo.")
@@ -325,7 +346,7 @@ async function loadHistory(days=null){
   document.getElementById("history").innerHTML = html || "<div class='history-item'>Sin historico todavia.</div>"
 }
 
-window.onload = function(){ loadHistory() }
+window.onload = function(){ initializeDashboard() }
 </script>
 </head>
 <body>
