@@ -270,19 +270,24 @@ if (x.picks) {
 try {
 let parsed = typeof x.picks === "string" ? JSON.parse(x.picks) : x.picks;
 
-// Si es array mostramos el primero
 if (Array.isArray(parsed) && parsed.length > 0) {
-const p = parsed[0];
-pickText = `
+
+pickText = parsed.map(p => `
+<div style="margin-bottom:4px;">
 <strong>${p.league || ""}</strong> · 
 ${p.market || ""} · 
 Cuota: ${p.odds || ""}
-`;
+</div>
+`).join("");
+
 } else if (typeof parsed === "object") {
+
 pickText = `
+<div>
 <strong>${parsed.league || ""}</strong> · 
 ${parsed.market || ""} · 
 Cuota: ${parsed.odds || ""}
+</div>
 `;
 }
 } catch(e) {
