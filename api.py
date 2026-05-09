@@ -15,7 +15,6 @@ from probettips.service import generate_daily_picks
 from probettips.history import load_history, upsert_ticket
 from probettips.supabase_store import SupabaseStore
 from probettips.telegram import send_message, format_message
-from probettips.settlement import settle_pending_tickets
 
 load_env_file()
 
@@ -216,5 +215,6 @@ def send():
 
 @app.get("/settle")
 def settle_pending():
+    from probettips.settlement import settle_pending_tickets
     settle_pending_tickets(store=store, api_token=FOOTBALL_DATA_API_TOKEN)
     return {"status": "ok"}
