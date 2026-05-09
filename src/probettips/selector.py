@@ -219,6 +219,7 @@ def composite_pick_score(pick: Pick, market_calibrations: dict[str, MarketCalibr
         + (pick.confidence * 0.10)
         + (pick.market_stability * 0.10)
         - (pick.risk_score * 0.18)
+        - (pick.context_penalty * 0.45)
         + (threshold_edge * 0.12)
         + core_bonus
     )
@@ -262,6 +263,7 @@ def composite_pair_score(
         + (combined_confidence * 0.10)
         + (combined_stability * 0.08)
         - (combined_risk * 0.16)
+        - ((first.context_penalty + second.context_penalty) * 0.22)
         + (threshold_edge * 0.10)
         + market_bias_bonus
         + mixed_bonus
@@ -296,13 +298,21 @@ def should_reject_pick(pick: Pick, market_calibrations: dict[str, MarketCalibrat
     if not market_needs_extra_evidence(pick.market, calibration):
         if calibration and calibration.sample_size_60 >= 6 and calibration.reliability_score < 0.62:
             return True
+        if pick.context_penalty >= 0.08:
+            return True
         return False
 
     probability = effective_probability(pick, market_calibrations)
     threshold = effective_threshold(pick, market_calibrations)
     edge = probability - threshold
     volatility_penalty = calibration.volatility_penalty if calibration else 0.0
-    return edge < 0.05 or pick.confidence < 0.82 or pick.risk_score > 0.12 or volatility_penalty > 0.10
+    return (
+        edge < 0.05
+        or pick.confidence < 0.82
+        or pick.risk_score > 0.12
+        or volatility_penalty > 0.10
+        or pick.context_penalty >= 0.06
+    )
 
 
 def adjusted_odds_for_bookmaker(estimated_odds: float) -> float:

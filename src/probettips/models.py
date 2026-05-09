@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -35,3 +35,6 @@ class Pick:
     market_stability: float
     dynamic_threshold: float
     rationale: str
+    context_penalty: float = 0.0
+    context_alerts: list[str] = field(default_factory=list)
+    context_source: str = ""

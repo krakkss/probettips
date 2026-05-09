@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from probettips.analysis import build_market_calibrations
+from probettips.context import TeamNewsContextProvider, apply_match_context_to_picks
 from probettips.engine import build_candidate_picks
 from probettips.models import Pick
 from probettips.providers import DEFAULT_COMPETITIONS, FlashscoreScheduleProvider, FootballDataProvider
@@ -38,6 +39,16 @@ def generate_daily_picks(
         source = "sample_data"
 
     candidates = build_candidate_picks(matches)
+    context_applied = False
+    if api_token and matches:
+        try:
+            context_provider = TeamNewsContextProvider()
+            match_contexts = context_provider.build_match_contexts(matches)
+            if any(context.penalty > 0 and context.alerts for context in match_contexts.values()):
+                candidates = apply_match_context_to_picks(candidates, match_contexts)
+                context_applied = True
+        except Exception:
+            context_applied = False
     if excluded_match_ids:
         candidates = [candidate for candidate in candidates if candidate.match_id not in excluded_match_ids]
     calibrations = {}
@@ -55,4 +66,6 @@ def generate_daily_picks(
         key=lambda pick: composite_pick_score(pick, calibrations),
         reverse=True,
     )[:12]
+    if context_applied:
+        source = f"{source} + contexto ultima hora"
     return date_label, selected, source, recommendation_tier, ranked_candidates

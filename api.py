@@ -119,6 +119,18 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .history-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .history-date{font-size:19px;font-weight:800}
 .history-summary{font-size:12px;color:#8fa4b8}
+.history-accordion{background:#0e141b;border:1px solid #18222c;border-radius:12px;margin-bottom:12px;overflow:hidden}
+.history-accordion[open]{border-color:#223243;box-shadow:0 0 0 1px rgba(0,255,136,.04)}
+.history-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;cursor:pointer;list-style:none}
+.history-toggle::-webkit-details-marker{display:none}
+.history-toggle-main{display:flex;flex-direction:column;gap:4px}
+.history-toggle-title{font-size:18px;font-weight:800}
+.history-toggle-subtitle{font-size:12px;color:#8fa4b8}
+.history-toggle-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.history-chevron{font-size:16px;color:#8fa4b8;transition:transform .2s ease}
+.history-accordion[open] .history-chevron{transform:rotate(180deg)}
+.history-body{padding:0 16px 16px}
+.history-inline-metric{font-size:12px;color:#8fa4b8}
 .pick-line{font-size:13px;margin-top:6px}
 .pick-line strong{display:block;font-size:14px;color:#f8fafc}
 .pick-leg{padding:10px 0}
@@ -168,6 +180,21 @@ function getAlternativeNotice(strategy){
   return "<div class='status-banner alt'>Apuesta alternativa con valor. No es la recomendada oficial del dia, pero se guarda para comparar rendimiento.</div>"
 }
 
+function renderContextAlerts(picks){
+  const alerts = []
+  ;(picks || []).forEach(p => {
+    ;(p.context_alerts || []).forEach(alert => {
+      if(!alerts.includes(alert)){
+        alerts.push(alert)
+      }
+    })
+  })
+  if(!alerts.length){
+    return ""
+  }
+  return `<div class='status-banner'>Contexto ultima hora: ${alerts.join(" ")}</div>`
+}
+
 function getTierLabel(data){
   if(!data || !data.picks || data.picks.length === 0){
     return "Sin pick"
@@ -191,6 +218,7 @@ function renderPickCard(data){
   }
 
   html += getAlternativeNotice(data.strategy)
+  html += renderContextAlerts(data.picks)
 
   let total = 1
   data.picks.forEach(p => {
@@ -318,7 +346,7 @@ async function loadHistory(days=null){
   document.getElementById("stat-profit-sub").innerText = "Unidades netas del tramo"
 
   let html = ""
-  filtered.forEach(x => {
+  filtered.forEach((x, index) => {
     let picksHtml = ""
     let totalOdds = 1
     const parsed = Array.isArray(x.picks) ? x.picks : []
@@ -335,14 +363,18 @@ async function loadHistory(days=null){
     const strategy = x.strategy || "official"
     const badge = getResultBadge(x.result)
     const title = isOfficialStrategy(strategy) ? "Pick oficial" : "Pick alternativo"
-    html += "<div class='history-item'>"
-    html += "<div class='history-header'>"
-    html += `<div><div class='history-date'>${tipDate}</div><div class='history-summary'>${title}</div></div>`
-    html += `<div class='history-meta'>${!isOfficialStrategy(strategy) ? "<span class='badge alt'>Con valor</span>" : ""}${badge}</div>`
-    html += "</div>"
+    const summaryMetric = `<span class='history-inline-metric'>Cuota total ${totalOdds.toFixed(2)}</span>`
+    html += `<details class='history-accordion' ${index === 0 ? "open" : ""}>`
+    html += "<summary class='history-toggle'>"
+    html += `<div class='history-toggle-main'><div class='history-toggle-title'>${tipDate}</div><div class='history-toggle-subtitle'>${title}</div></div>`
+    html += `<div class='history-toggle-side'>${summaryMetric}${!isOfficialStrategy(strategy) ? "<span class='badge alt'>Con valor</span>" : ""}${badge}<span class='history-chevron'>⌄</span></div>`
+    html += "</summary>"
+    html += "<div class='history-body'>"
     html += getAlternativeNotice(strategy)
+    html += renderContextAlerts(parsed)
     html += picksHtml
     html += "</div>"
+    html += "</details>"
   })
 
   document.getElementById("history").innerHTML = html || "<div class='history-item'>Sin historico todavia.</div>"
@@ -509,6 +541,9 @@ def _pick_to_dict(pick: Pick) -> dict:
         "market_stability": pick.market_stability,
         "dynamic_threshold": pick.dynamic_threshold,
         "rationale": pick.rationale,
+        "context_penalty": pick.context_penalty,
+        "context_alerts": pick.context_alerts,
+        "context_source": pick.context_source,
     }
 
 
@@ -528,4 +563,7 @@ def _dict_to_pick(data: dict) -> Pick:
         market_stability=float(data.get("market_stability", 0.0)),
         dynamic_threshold=float(data.get("dynamic_threshold", 0.0)),
         rationale=data.get("rationale", ""),
+        context_penalty=float(data.get("context_penalty", 0.0)),
+        context_alerts=list(data.get("context_alerts", []) or []),
+        context_source=data.get("context_source", ""),
     )
