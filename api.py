@@ -203,6 +203,13 @@ let html = `
 </div>
 `;
 
+if(data.warning){
+html+=`
+<div style="margin-top:10px;padding:10px;border-radius:8px;background:#2a1a00;color:#ffaa00;font-size:13px;">
+⚠️ ${data.warning}
+</div>`;
+}
+
 let totalOdds = 1;
 
 data.picks.forEach(p=>{
@@ -393,11 +400,17 @@ def generate():
             }
         )
 
+    warning_message = None
+
+    if source and isinstance(source, str) and "aviso" in source.lower():
+        warning_message = source
+
     return JSONResponse(
         {
             "date": date_label,
             "tier": tier,
             "picks": structured,
+            "warning": warning_message,
         }
     )
 
