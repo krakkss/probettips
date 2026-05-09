@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-from datetime import date
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from probettips.config import load_env_file, get_env
@@ -26,133 +24,254 @@ store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
-    <html>
-        <head>
-            <title>ProBetTips Dashboard</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background: radial-gradient(circle at 20% 20%, #1e293b, #0f172a 60%);
-                    color: #e2e8f0;
-                    margin: 0;
-                    padding: 0;
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ProBetTips</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #3b82f6;
+            --green: #10b981;
+            --orange: #f59e0b;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+            color: var(--text);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            z-index: 10;
+        }
+
+        .logo {
+            width: 36px;
+            height: 36px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .stats {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: 14px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .stat-title {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .primary { background: var(--accent); color: white; }
+        .success { background: var(--green); color: white; }
+        .warning { background: var(--orange); color: white; }
+        .neutral { background: var(--card); color: var(--text); }
+
+        button:active { transform: scale(0.96); }
+
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 16px;
+            min-height: 150px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 600px) {
+            .buttons { grid-template-columns: 1fr; }
+        }
+    </style>
+
+    <script>
+        async function callEndpoint(endpoint) {
+            const output = document.getElementById("output");
+            output.innerText = "Cargando...";
+            try {
+                const res = await fetch(endpoint);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    output.innerText = JSON.stringify(json, null, 2);
+                } catch {
+                    output.innerText = text;
                 }
-                .container {
-                    max-width: 900px;
-                    margin: auto;
-                    padding: 40px 20px;
-                }
-                h1 {
-                    font-size: 42px;
-                    margin-bottom: 5px;
-                    letter-spacing: -1px;
-                }
-                .subtitle {
-                    opacity: 0.6;
-                    margin-bottom: 35px;
-                    font-size: 15px;
-                }
-                .buttons {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                    gap: 15px;
-                    margin-bottom: 30px;
-                }
-                button {
-                    padding: 15px;
-                    border-radius: 12px;
-                    border: none;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: 0.2s ease;
-                    backdrop-filter: blur(10px);
+            } catch {
+                output.innerText = "Error al ejecutar la acción.";
+            }
+        }
+
+        async function loadHistory() {
+            const output = document.getElementById("output");
+            output.innerText = "Cargando historial...";
+            try {
+                const res = await fetch("/history");
+                const data = await res.json();
+
+                if (!data.length) {
+                    output.innerText = "No hay histórico disponible.";
+                    return;
                 }
 
-                .primary { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-                .success { background: linear-gradient(135deg,#10b981,#059669); }
-                .warning { background: linear-gradient(135deg,#f59e0b,#d97706); }
-                .neutral { background: #334155; }
+                let html = "";
+                data.slice().reverse().forEach(item => {
+                    const color =
+                        item.status === "won" ? "#10b981" :
+                        item.status === "lost" ? "#ef4444" :
+                        "#f59e0b";
 
-                button:hover {
-                    transform: translateY(-3px);
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-                }
+                    html += `
+                        <div style="margin-bottom:15px; padding:15px; background:#0f172a; border-radius:12px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <strong>${item.date}</strong>
+                                <span style="color:${color}; font-weight:600;">
+                                    ${item.status.toUpperCase()}
+                                </span>
+                            </div>
+                            <div style="font-size:12px; opacity:0.7; margin-top:6px;">
+                                ${item.source}
+                            </div>
+                        </div>
+                    `;
+                });
 
-                .card {
-                    background: rgba(30,41,59,0.9);
-                    border-radius: 16px;
-                    padding: 25px;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-                    min-height: 180px;
-                    white-space: pre-wrap;
-                    font-size: 14px;
-                    line-height: 1.5;
-                }
+                output.innerHTML = html;
+            } catch {
+                output.innerText = "Error cargando historial.";
+            }
+        }
+    </script>
+</head>
 
-                .loading {
-                    opacity: 0.5;
-                }
+<body>
 
-                .footer {
-                    margin-top: 40px;
-                    text-align: center;
-                    font-size: 12px;
-                    opacity: 0.5;
-                }
-            </style>
-            <script>
-                async function callEndpoint(endpoint) {
-                    const output = document.getElementById("output");
-                    output.innerText = "Cargando...";
-                    output.classList.add("loading");
-                    try {
-                        const res = await fetch(endpoint);
-                        const text = await res.text();
-                        try {
-                            const json = JSON.parse(text);
-                            output.innerText = JSON.stringify(json, null, 2);
-                        } catch {
-                            output.innerText = text;
-                        }
-                    } catch (err) {
-                        output.innerText = "Error: " + err;
-                    }
-                    output.classList.remove("loading");
-                }
-            </script>
-        </head>
-        <body>
-            <div class="container">
-                <h1>ProBetTips</h1>
-                <div class="subtitle">AI Betting Dashboard</div>
+    <div class="header">
+        <div class="logo">
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <rect width="512" height="512" rx="110" fill="#0f172a"/>
+                <polyline 
+                    points="100,340 190,260 270,300 360,180 420,220" 
+                    fill="none" 
+                    stroke="#3b82f6" 
+                    stroke-width="28" 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round"/>
+                <circle cx="360" cy="180" r="20" fill="#10b981"/>
+            </svg>
+        </div>
+        <div>
+            <div class="title">ProBetTips</div>
+            <div class="subtitle">AI Betting Intelligence</div>
+        </div>
+    </div>
 
-                <div class="buttons">
-                    <button class="primary" onclick="callEndpoint('/generate')">
-                        Generar Pick Diario
-                    </button>
-                    <button class="success" onclick="callEndpoint('/save')">
-                        Guardar en BD
-                    </button>
-                    <button class="warning" onclick="callEndpoint('/send')">
-                        Enviar a Telegram
-                    </button>
-                    <button class="neutral" onclick="callEndpoint('/history')">
-                        Ver Histórico
-                    </button>
-                </div>
+    <div class="container">
 
-                <div class="card" id="output">
-                    Sistema listo. Pulsa "Generar Pick Diario".
-                </div>
-
-                <div class="footer">
-                    ProBetTips AI • Engine v2 • Cloud Deployment
-                </div>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-title">Estado</div>
+                <div class="stat-value">Online</div>
             </div>
-        </body>
-    </html>
+            <div class="stat-card">
+                <div class="stat-title">Estrategia</div>
+                <div class="stat-value">Official</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Modo</div>
+                <div class="stat-value">Producción</div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="primary" onclick="callEndpoint('/generate')">🎯 Generar Pick</button>
+            <button class="success" onclick="callEndpoint('/save')">💾 Guardar</button>
+            <button class="warning" onclick="callEndpoint('/send')">📩 Telegram</button>
+            <button class="neutral" onclick="loadHistory()">📊 Historial</button>
+        </div>
+
+        <div class="card" id="output">
+            Sistema listo. Genera el pick del día.
+        </div>
+
+        <div class="footer">
+            © ProBetTips AI · Statistical Engine v2
+        </div>
+
+    </div>
+
+</body>
+</html>
     """
 
 
@@ -166,8 +285,7 @@ def generate():
     )
     if not picks:
         return "No hay picks disponibles hoy"
-    message = format_message(date_label, picks, tier)
-    return message
+    return format_message(date_label, picks, tier)
 
 
 @app.get("/save")
@@ -201,5 +319,4 @@ def send():
 
 @app.get("/history")
 def history():
-    entries = load_history(store)
-    return entries
+    return load_history(store)
