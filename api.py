@@ -37,6 +37,7 @@ def home():
             --accent: #3b82f6;
             --green: #10b981;
             --orange: #f59e0b;
+            --red: #ef4444;
             --text: #e2e8f0;
             --muted: #94a3b8;
         }
@@ -53,8 +54,8 @@ def home():
         .header {
             position: sticky;
             top: 0;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(14px);
             padding: 16px 20px;
             display: flex;
             align-items: center;
@@ -63,20 +64,10 @@ def home():
             z-index: 10;
         }
 
-        .logo {
-            width: 36px;
-            height: 36px;
-        }
+        .logo { width: 36px; height: 36px; }
 
-        .title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .subtitle {
-            font-size: 12px;
-            color: var(--muted);
-        }
+        .title { font-size: 18px; font-weight: 600; }
+        .subtitle { font-size: 12px; color: var(--muted); }
 
         .container {
             padding: 20px;
@@ -99,15 +90,8 @@ def home():
             text-align: center;
         }
 
-        .stat-title {
-            font-size: 11px;
-            color: var(--muted);
-        }
-
-        .stat-value {
-            font-size: 16px;
-            font-weight: 600;
-        }
+        .stat-title { font-size: 11px; color: var(--muted); }
+        .stat-value { font-size: 18px; font-weight: 600; }
 
         .buttons {
             display: grid;
@@ -123,7 +107,7 @@ def home():
             font-weight: 600;
             font-size: 14px;
             cursor: pointer;
-            transition: 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .primary { background: var(--accent); color: white; }
@@ -138,8 +122,22 @@ def home():
             padding: 20px;
             border-radius: 16px;
             min-height: 150px;
-            white-space: pre-wrap;
             line-height: 1.6;
+            position: relative;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+            margin: auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .footer {
@@ -155,37 +153,49 @@ def home():
     </style>
 
     <script>
-        async function callEndpoint(endpoint) {
+        function showSpinner() {
             const output = document.getElementById("output");
-            output.innerText = "Cargando...";
+            output.innerHTML = "<div class='spinner'></div>";
+        }
+
+        async function callEndpoint(endpoint) {
+            showSpinner();
             try {
                 const res = await fetch(endpoint);
                 const text = await res.text();
                 try {
                     const json = JSON.parse(text);
-                    output.innerText = JSON.stringify(json, null, 2);
+                    document.getElementById("output").innerText =
+                        JSON.stringify(json, null, 2);
                 } catch {
-                    output.innerText = text;
+                    document.getElementById("output").innerText = text;
                 }
             } catch {
-                output.innerText = "Error al ejecutar la acción.";
+                document.getElementById("output").innerText =
+                    "Error al ejecutar la acción.";
             }
         }
 
         async function loadHistory() {
-            const output = document.getElementById("output");
-            output.innerText = "Cargando historial...";
+            showSpinner();
             try {
                 const res = await fetch("/history");
                 const data = await res.json();
 
                 if (!data.length) {
-                    output.innerText = "No hay histórico disponible.";
+                    document.getElementById("output").innerText =
+                        "No hay histórico disponible.";
                     return;
                 }
 
+                let wins = 0;
+                let losses = 0;
+
                 let html = "";
                 data.slice().reverse().forEach(item => {
+                    if (item.status === "won") wins++;
+                    if (item.status === "lost") losses++;
+
                     const color =
                         item.status === "won" ? "#10b981" :
                         item.status === "lost" ? "#ef4444" :
@@ -206,9 +216,18 @@ def home():
                     `;
                 });
 
-                output.innerHTML = html;
+                const total = wins + losses;
+                const hitRate = total ? Math.round((wins / total) * 100) : 0;
+
+                document.getElementById("hitRate").innerText = hitRate + "%";
+                document.getElementById("totalPicks").innerText = total;
+                document.getElementById("wins").innerText = wins;
+
+                document.getElementById("output").innerHTML = html;
+
             } catch {
-                output.innerText = "Error cargando historial.";
+                document.getElementById("output").innerText =
+                    "Error cargando historial.";
             }
         }
     </script>
@@ -224,8 +243,8 @@ def home():
                     points="100,340 190,260 270,300 360,180 420,220" 
                     fill="none" 
                     stroke="#3b82f6" 
-                    stroke-width="28" 
-                    stroke-linecap="round" 
+                    stroke-width="28"
+                    stroke-linecap="round"
                     stroke-linejoin="round"/>
                 <circle cx="360" cy="180" r="20" fill="#10b981"/>
             </svg>
@@ -240,16 +259,16 @@ def home():
 
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-title">Estado</div>
-                <div class="stat-value">Online</div>
+                <div class="stat-title">Hit Rate</div>
+                <div class="stat-value" id="hitRate">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-title">Estrategia</div>
-                <div class="stat-value">Official</div>
+                <div class="stat-title">Picks</div>
+                <div class="stat-value" id="totalPicks">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-title">Modo</div>
-                <div class="stat-value">Producción</div>
+                <div class="stat-title">Wins</div>
+                <div class="stat-value" id="wins">--</div>
             </div>
         </div>
 
@@ -261,7 +280,7 @@ def home():
         </div>
 
         <div class="card" id="output">
-            Sistema listo. Genera el pick del día.
+            Sistema listo. Pulsa Historial para cargar métricas.
         </div>
 
         <div class="footer">
