@@ -195,8 +195,12 @@ let equity=0;
 let equityCurve=[];
 
 filtered.forEach(x=>{
-if(x.status==="won"){wins++;equity+=1;}
-if(x.status==="lost"){losses++;equity-=1;}
+// Normalizamos estados
+const status = (x.status || "").toLowerCase();
+
+if(status==="won"){wins++;equity+=1;}
+if(status==="lost"){losses++;equity-=1;}
+
 equityCurve.push(equity);
 });
 
@@ -219,17 +223,43 @@ drawEquity(equityCurve);
 
 let html="";
 filtered.forEach(x=>{
-const color=
-x.status==="won"?"#00ff88":
-x.status==="lost"?"#ff3b3b":"#ffaa00";
+const rawStatus=(x.status || "").toLowerCase();
+
+let label="Pendiente";
+let color="#ffaa00";
+
+if(rawStatus==="won"){
+label="Ganada";
+color="#00ff88";
+}
+else if(rawStatus==="lost"){
+label="Perdida";
+color="#ff3b3b";
+}
+else if(rawStatus==="settled"){
+label="Finalizada";
+color="#00c26e";
+}
+else if(rawStatus==="pending"){
+label="Pendiente";
+color="#ffaa00";
+}
+
+// Intentamos mostrar el pick si existe
+const pickText = x.picks 
+? JSON.stringify(x.picks).slice(0,60) 
+: (x.source || "Sin detalle");
 
 html+=`
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
 <strong>${x.date || "-"}</strong>
 <span style="color:${color};font-weight:800;">
-${(x.status || "-").toUpperCase()}
+${label}
 </span>
+</div>
+<div style="font-size:13px;margin-top:6px;color:#cfd8dc;">
+${pickText}
 </div>
 </div>`;
 });
