@@ -1,0 +1,1 @@
+"""proBetTips package."""

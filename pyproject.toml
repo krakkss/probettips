@@ -1,0 +1,20 @@
+[project]
+name = "pro-bet-tips"
+version = "0.1.0"
+description = "MVP para generar picks conservadores de futbol y enviarlos a Telegram"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+probettips = "probettips.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
