@@ -1,0 +1,80 @@
+ProBetTipsIA · Logo v4 (versión final profesional · minimal · premium)
+
+Enfoque:
+- Sin texto (más potente en tamaño pequeño)
+- Línea más estilizada
+- Más limpio
+- Más premium
+- Pensado 100% para avatar circular de Telegram
+
+Este es el logo definitivo para posicionarlo como herramienta cuantitativa seria.
+
+INSTRUCCIONES:
+1) Copia el SVG
+2) Guarda como: probettipsIA_logo_v4.svg
+3) Convierte a PNG 512x512
+4) Súbelo como foto del canal y del bot
+
+--- COPIAR DESDE AQUÍ ---
+
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <linearGradient id="profitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="100%" stop-color="#00c26e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo negro profundo -->
+  <circle cx="256" cy="256" r="256" fill="#0b0f14"/>
+
+  <!-- Anillo exterior sutil -->
+  <circle cx="256" cy="256" r="200"
+          fill="none"
+          stroke="#121a22"
+          stroke-width="8"/>
+
+  <!-- Tendencia alcista refinada -->
+  <polyline
+    points="120,330 200,260 260,290 340,210 400,170"
+    fill="none"
+    stroke="url(#profitGrad)"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- Flecha elegante -->
+  <polygon points="400,170 382,176 392,158"
+           fill="#00ff88"/>
+
+  <!-- Núcleo IA minimal -->
+  <circle cx="256" cy="256"
+          r="45"
+          fill="none"
+          stroke="#00ff88"
+          stroke-width="6"/>
+
+  <!-- Punto central -->
+  <circle cx="256" cy="256"
+          r="10"
+          fill="#00ff88"/>
+
+</svg>
+
+--- FIN ---
+
+Qué transmite ahora:
+
+✔ Profit claro y dominante  
+✔ IA integrada pero elegante  
+✔ Precisión cuantitativa  
+✔ Minimalismo profesional  
+✔ Marca madura y seria  
+
+Este ya parece:
+
+Una herramienta de análisis cuantitativo.
+No un canal de apuestas.
+
+Si al verlo en Telegram quieres micro‑ajustes (más agresivo o más corporativo), lo afinamos.

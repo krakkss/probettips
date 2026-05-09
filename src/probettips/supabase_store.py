@@ -174,6 +174,26 @@ class SupabaseStore:
                 extra_headers={"Prefer": "return=minimal"},
             )
 
+    def update_ticket_result(self, ticket_id: str, status: str, result: str) -> None:
+        """
+        Actualiza status y resultado de una combinada ya guardada.
+        """
+        self._request(
+            method="PATCH",
+            path="/rest/v1/daily_tips",
+            query={
+                "tip_date": f"eq.{ticket_id}",
+            },
+            body=[
+                {
+                    "status": status,
+                    "result": result,
+                }
+            ],
+            profile_header="Content-Profile",
+            extra_headers={"Prefer": "return=minimal"},
+        )
+
     def _request(
         self,
         method: str,
