@@ -184,8 +184,9 @@ if(days){
 const cutoff=new Date();
 cutoff.setDate(cutoff.getDate()-days);
 filtered=filtered.filter(x=>{
-if(!x.date) return false;
-return new Date(x.date)>=cutoff;
+const d = x.tip_date || x.date;
+if(!d) return false;
+return new Date(d) >= cutoff;
 });
 }
 
@@ -317,7 +318,7 @@ pickText = x.source || "Sin detalle";
 html+=`
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
-<strong>${x.date || "-"}</strong>
+<strong>${x.tip_date || x.date || "-"}</strong>
 <span style="color:${color};font-weight:800;">
 ${label}
 </span>
