@@ -121,6 +121,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .history-summary{font-size:12px;color:#8fa4b8}
 .pick-line{font-size:13px;margin-top:6px}
 .pick-line strong{display:block;font-size:14px;color:#f8fafc}
+.pick-leg{padding:10px 0}
+.pick-leg + .pick-leg{border-top:1px solid #18222c;margin-top:10px}
 .status{margin-top:10px;color:#9fb3c8;font-size:13px}
 .warning{color:#ffaa00;margin-top:8px}
 .status-banner{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1px solid #1a3342;background:#0d1a24;color:#c7d8e5;font-size:13px}
@@ -193,7 +195,7 @@ function renderPickCard(data){
   let total = 1
   data.picks.forEach(p => {
     total *= parseFloat(p.odds || 1)
-    html += `<div class='pick-line'><strong>${p.match_label || p.match || ""}</strong><br>${p.league || ""} - ${p.market || ""} - Cuota: ${Number(p.odds || 1).toFixed(2)}</div>`
+    html += `<div class='pick-leg'><div class='pick-line'><strong>${p.match_label || p.match || ""}</strong><br>${p.league || ""} - ${p.market || ""} - Cuota: ${Number(p.odds || 1).toFixed(2)}</div></div>`
   })
 
   html += "<div class='daily-summary'>"
@@ -323,7 +325,7 @@ async function loadHistory(days=null){
     parsed.forEach(p => {
       totalOdds *= parseFloat(p.odds || 1)
       const match = p.match_label || p.match || p.fixture || ""
-      picksHtml += `<div class='pick-line'><strong>${match}</strong><br>${p.league || ""} - ${p.market || ""} - Cuota: ${Number(p.odds || 1).toFixed(2)}</div>`
+      picksHtml += `<div class='pick-leg'><div class='pick-line'><strong>${match}</strong><br>${p.league || ""} - ${p.market || ""} - Cuota: ${Number(p.odds || 1).toFixed(2)}</div></div>`
     })
     if(parsed.length > 1){
       picksHtml += `<div class='pick-line' style='color:#00ff88;font-weight:700'>Cuota total: ${totalOdds.toFixed(2)}</div>`
