@@ -195,9 +195,17 @@ let equity=0;
 let equityCurve=[];
 
 filtered.forEach(x=>{
-// Normalizamos estados
+// Normalizamos estados y resultado
 const status = (x.status || "").toLowerCase();
+const result = (x.result || "").toLowerCase();
 
+// Si está settled miramos el result real
+if(status==="settled"){
+if(result==="win"){wins++;equity+=1;}
+if(result==="loss"){losses++;equity-=1;}
+}
+
+// Compatibilidad si algún día guardas directamente won/lost
 if(status==="won"){wins++;equity+=1;}
 if(status==="lost"){losses++;equity-=1;}
 
@@ -228,21 +236,31 @@ const rawStatus=(x.status || "").toLowerCase();
 let label="Pendiente";
 let color="#ffaa00";
 
-if(rawStatus==="won"){
+if(rawStatus==="settled"){
+if((x.result || "").toLowerCase()==="win"){
+label="Ganada";
+color="#00ff88";
+}
+else if((x.result || "").toLowerCase()==="loss"){
+label="Perdida";
+color="#ff3b3b";
+}
+else{
+label="Finalizada";
+color="#00c26e";
+}
+}
+else if(rawStatus==="pending"){
+label="Pendiente";
+color="#ffaa00";
+}
+else if(rawStatus==="won"){
 label="Ganada";
 color="#00ff88";
 }
 else if(rawStatus==="lost"){
 label="Perdida";
 color="#ff3b3b";
-}
-else if(rawStatus==="settled"){
-label="Finalizada";
-color="#00c26e";
-}
-else if(rawStatus==="pending"){
-label="Pendiente";
-color="#ffaa00";
 }
 
 // Intentamos mostrar el pick si existe
