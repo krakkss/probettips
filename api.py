@@ -200,8 +200,14 @@ if(x.status==="lost"){losses++;equity-=1;}
 equityCurve.push(equity);
 });
 
-const total=wins+losses;
-const hitRate=total?Math.round((wins/total)*100):0;
+// Total picks ahora cuenta todos los registros (incluye pending / settled)
+const total=filtered.length;
+
+// Hit rate solo sobre picks resueltos (won/lost)
+const resolved=wins+losses;
+const hitRate=resolved?Math.round((wins/resolved)*100):0;
+
+// ROI sobre total histórico visible
 const roi=total?(((wins-losses)/total)*100).toFixed(1):0;
 
 document.getElementById("stat-hit").innerText=hitRate+"%";
