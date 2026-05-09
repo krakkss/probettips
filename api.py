@@ -367,6 +367,8 @@ def generate():
     return format_message(date_label, picks, tier)
 
 
+from probettips.history import upsert_ticket
+
 @app.get("/send")
 def send():
     date_label, picks, source, tier, candidates = generate_daily_picks(
@@ -377,9 +379,22 @@ def send():
     )
     if not picks:
         return "No hay picks para enviar"
+
+    # Guardamos en BD antes de enviar
+    upsert_ticket(
+        store,
+        date_label,
+        source,
+        picks,
+        "official",
+        tier,
+        candidates,
+    )
+
     message = format_message(date_label, picks, tier)
     send_message(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
-    return "Enviado"
+
+    return "Guardado en BD y enviado a Telegram ✅"
 
 
 @app.get("/history")
