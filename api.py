@@ -54,84 +54,98 @@ def home():
         .header {
             position: sticky;
             top: 0;
-            background: rgba(15, 23, 42, 0.92);
-            backdrop-filter: blur(14px);
-            padding: 16px 20px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            padding: 18px 20px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             z-index: 10;
         }
 
-        .logo { width: 36px; height: 36px; }
+        .logo { width: 38px; height: 38px; }
 
-        .title { font-size: 18px; font-weight: 600; }
+        .title { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
         .subtitle { font-size: 12px; color: var(--muted); }
 
         .container {
-            padding: 20px;
+            padding: 22px;
             max-width: 900px;
             margin: auto;
         }
 
         .stats {
             display: flex;
-            gap: 12px;
+            gap: 14px;
             overflow-x: auto;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
 
         .stat-card {
             background: var(--card);
-            padding: 16px;
-            border-radius: 14px;
-            min-width: 140px;
+            padding: 18px;
+            border-radius: 16px;
+            min-width: 150px;
             text-align: center;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+            transition: 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
         }
 
         .stat-title { font-size: 11px; color: var(--muted); }
-        .stat-value { font-size: 18px; font-weight: 600; }
+        .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
 
         .buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 14px;
+            margin-bottom: 24px;
         }
 
         button {
-            padding: 14px;
-            border-radius: 14px;
+            padding: 16px;
+            border-radius: 16px;
             border: none;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.15s ease;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
         }
 
-        .primary { background: var(--accent); color: white; }
-        .success { background: var(--green); color: white; }
-        .warning { background: var(--orange); color: white; }
+        .primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
         .neutral { background: var(--card); color: var(--text); }
 
+        button:hover { transform: translateY(-2px); }
         button:active { transform: scale(0.96); }
 
         .card {
             background: var(--card);
-            padding: 20px;
-            border-radius: 16px;
-            min-height: 150px;
+            padding: 22px;
+            border-radius: 18px;
+            min-height: 160px;
             line-height: 1.6;
-            position: relative;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.4);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .spinner {
             border: 3px solid rgba(255,255,255,0.1);
             border-top: 3px solid var(--accent);
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 26px;
+            height: 26px;
             animation: spin 0.8s linear infinite;
             margin: auto;
         }
@@ -142,9 +156,10 @@ def home():
 
         .footer {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 34px;
             font-size: 11px;
             color: var(--muted);
+            opacity: 0.8;
         }
 
         @media (max-width: 600px) {
@@ -202,10 +217,10 @@ def home():
                         "#f59e0b";
 
                     html += `
-                        <div style="margin-bottom:15px; padding:15px; background:#0f172a; border-radius:12px;">
+                        <div style="margin-bottom:16px; padding:16px; background:#0f172a; border-radius:14px;">
                             <div style="display:flex; justify-content:space-between;">
                                 <strong>${item.date}</strong>
-                                <span style="color:${color}; font-weight:600;">
+                                <span style="color:${color}; font-weight:700;">
                                     ${item.status.toUpperCase()}
                                 </span>
                             </div>
