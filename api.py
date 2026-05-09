@@ -160,6 +160,12 @@ margin-top:15px;
 
 <script>
 
+async function generatePick(){
+const res = await fetch("/generate");
+const text = await res.text();
+alert(text);
+}
+
 function resetStats(){
 document.getElementById("stat-hit").innerText="0%";
 document.getElementById("stat-total").innerText="0";
@@ -315,6 +321,7 @@ window.onload=function(){loadHistory();}
 <button onclick="loadHistory()">Todo</button>
 <button onclick="loadHistory(7)">7 días</button>
 <button onclick="loadHistory(30)">30 días</button>
+<button class="primary" onclick="generatePick()">Generar Pick</button>
 </div>
 
 <canvas id="equity" width="800" height="250"></canvas>
