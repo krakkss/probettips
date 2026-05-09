@@ -6,7 +6,7 @@ from probettips.config import load_env_file, get_env
 from probettips.service import generate_daily_picks
 from probettips.history import load_history
 from probettips.supabase_store import SupabaseStore
-from probettips.telegram import format_message
+from probettips.telegram import send_message, format_message
 
 load_env_file()
 
@@ -15,6 +15,8 @@ app = FastAPI(title="ProBetTips API")
 SUPABASE_URL = get_env("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = get_env("SUPABASE_SERVICE_ROLE_KEY")
 FOOTBALL_DATA_API_TOKEN = get_env("FOOTBALL_DATA_API_TOKEN")
+TELEGRAM_BOT_TOKEN = get_env("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = get_env("TELEGRAM_CHAT_ID")
 
 store = SupabaseStore(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -87,7 +89,7 @@ color:var(--primary);
 display:flex;
 gap:14px;
 flex-wrap:wrap;
-margin-bottom:25px;
+margin-bottom:20px;
 }
 
 button{
@@ -111,6 +113,7 @@ background:var(--card);
 padding:22px;
 border-radius:18px;
 border:1px solid #1c2732;
+margin-bottom:20px;
 }
 
 .history-item{
@@ -136,11 +139,42 @@ margin-top:15px;
 </style>
 
 <script>
+
+let lastGeneratedMessage = null;
+
 function resetStats(){
 document.getElementById("stat-hit").innerText="0%";
 document.getElementById("stat-total").innerText="0";
 document.getElementById("stat-roi").innerText="0%";
 document.getElementById("stat-profit").innerText="0u";
+}
+
+async function generatePick(){
+const resultDiv = document.getElementById("pickResult");
+const sendBtn = document.getElementById("sendBtn");
+
+resultDiv.style.display="block";
+resultDiv.innerHTML="Generando pick... ⏳";
+sendBtn.style.display="none";
+
+try{
+const res = await fetch("/generate");
+const text = await res.text();
+
+lastGeneratedMessage = text;
+
+resultDiv.innerHTML = "<pre style='white-space:pre-wrap'>" + text + "</pre>";
+sendBtn.style.display="inline-block";
+}catch{
+resultDiv.innerHTML="Error generando pick.";
+}
+}
+
+async function sendToTelegram(){
+if(!lastGeneratedMessage) return;
+
+await fetch("/send");
+alert("Enviado a Telegram ✅");
 }
 
 function drawEquity(data){
@@ -196,31 +230,20 @@ let equity=0;
 let equityCurve=[];
 
 filtered.forEach(x=>{
-// Normalizamos estados y resultado
 const status = (x.status || "").toLowerCase();
 const result = (x.result || "").toLowerCase();
 
-// Si está settled miramos el result real
 if(status==="settled"){
 if(result==="win"){wins++;equity+=1;}
 if(result==="loss"){losses++;equity-=1;}
 }
 
-// Compatibilidad si algún día guardas directamente won/lost
-if(status==="won"){wins++;equity+=1;}
-if(status==="lost"){losses++;equity-=1;}
-
 equityCurve.push(equity);
 });
 
-// Total picks ahora cuenta todos los registros (incluye pending / settled)
 const total=filtered.length;
-
-// Hit rate solo sobre picks resueltos (won/lost)
 const resolved=wins+losses;
 const hitRate=resolved?Math.round((wins/resolved)*100):0;
-
-// ROI sobre total histórico visible
 const roi=total?(((wins-losses)/total)*100).toFixed(1):0;
 
 document.getElementById("stat-hit").innerText=hitRate+"%";
@@ -246,82 +269,32 @@ else if((x.result || "").toLowerCase()==="loss"){
 label="Perdida";
 color="#ff3b3b";
 }
-else{
-label="Finalizada";
-color="#00c26e";
-}
-}
-else if(rawStatus==="pending"){
-label="Pendiente";
-color="#ffaa00";
-}
-else if(rawStatus==="won"){
-label="Ganada";
-color="#00ff88";
-}
-else if(rawStatus==="lost"){
-label="Perdida";
-color="#ff3b3b";
 }
 
-/* Formateamos el pick de forma legible */
-let pickText = "Sin detalle";
+let pickText="Sin detalle";
 
-if (x.picks) {
-try {
-let parsed = typeof x.picks === "string" ? JSON.parse(x.picks) : x.picks;
+if(x.picks){
+try{
+let parsed=typeof x.picks==="string"?JSON.parse(x.picks):x.picks;
 
-if (Array.isArray(parsed) && parsed.length > 0) {
-
-let totalOdds = 1;
-
-const lines = parsed.map(p => {
-const odd = parseFloat(p.odds || 1);
-if (!isNaN(odd)) totalOdds *= odd;
-
-return `
-<div style="margin-bottom:4px;">
-<strong>${p.league || ""}</strong> · 
-${p.market || ""} · 
-Cuota: ${p.odds || ""}
-</div>
-`;
+if(Array.isArray(parsed)){
+let totalOdds=1;
+const lines=parsed.map(p=>{
+const odd=parseFloat(p.odds||1);
+if(!isNaN(odd)) totalOdds*=odd;
+return `<div><strong>${p.league}</strong> · ${p.market} · Cuota: ${p.odds}</div>`;
 }).join("");
 
-// Redondeamos a 2 decimales
-totalOdds = totalOdds.toFixed(2);
-
-pickText = `
-${lines}
-<div style="margin-top:6px;font-weight:700;color:#00ff88;">
-Cuota total: ${totalOdds}
-</div>
-`;
-
-} else if (typeof parsed === "object") {
-
-pickText = `
-<div>
-<strong>${parsed.league || ""}</strong> · 
-${parsed.market || ""} · 
-Cuota: ${parsed.odds || ""}
-</div>
-`;
+pickText=lines+`<div style="margin-top:6px;font-weight:700;color:#00ff88;">Cuota total: ${totalOdds.toFixed(2)}</div>`;
 }
-} catch(e) {
-pickText = x.source || "Sin detalle";
-}
-} else {
-pickText = x.source || "Sin detalle";
+}catch{}
 }
 
 html+=`
 <div class="history-item">
 <div style="display:flex;justify-content:space-between;">
 <strong>${x.tip_date || x.date || "-"}</strong>
-<span style="color:${color};font-weight:800;">
-${label}
-</span>
+<span style="color:${color};font-weight:800;">${label}</span>
 </div>
 <div style="font-size:13px;margin-top:6px;color:#cfd8dc;">
 ${pickText}
@@ -331,15 +304,15 @@ ${pickText}
 
 document.getElementById("history").innerHTML=html;
 
-}catch(err){
+}catch{
 resetStats();
 document.getElementById("history").innerText="Error cargando datos.";
 }
 }
 
 window.onload=function(){loadHistory();}
-</script>
 
+</script>
 </head>
 
 <body>
@@ -351,32 +324,21 @@ ProBetTipsIA · Quant Betting Engine
 <div class="container">
 
 <div class="stats">
-<div class="stat">
-<div>Hit Rate</div>
-<div class="stat-value" id="stat-hit">--</div>
-</div>
-<div class="stat">
-<div>Total Picks</div>
-<div class="stat-value" id="stat-total">--</div>
-</div>
-<div class="stat">
-<div>ROI</div>
-<div class="stat-value" id="stat-roi">--</div>
-</div>
-<div class="stat">
-<div>Profit (u)</div>
-<div class="stat-value" id="stat-profit">--</div>
-</div>
+<div class="stat"><div>Hit Rate</div><div class="stat-value" id="stat-hit">--</div></div>
+<div class="stat"><div>Total Picks</div><div class="stat-value" id="stat-total">--</div></div>
+<div class="stat"><div>ROI</div><div class="stat-value" id="stat-roi">--</div></div>
+<div class="stat"><div>Profit (u)</div><div class="stat-value" id="stat-profit">--</div></div>
 </div>
 
 <div class="buttons">
 <button onclick="loadHistory()">Todo</button>
 <button onclick="loadHistory(7)">7 días</button>
 <button onclick="loadHistory(30)">30 días</button>
-<button class="primary" onclick="fetch('/generate').then(r=>r.text()).then(t=>alert(t))">
-Generar Pick
-</button>
+<button class="primary" onclick="generatePick()">Generar Pick</button>
+<button id="sendBtn" style="display:none;" onclick="sendToTelegram()">Enviar a Telegram</button>
 </div>
+
+<div class="card" id="pickResult" style="display:none;"></div>
 
 <canvas id="equity" width="800" height="250"></canvas>
 
@@ -387,7 +349,6 @@ Motor cuantitativo · Dashboard personal
 </div>
 
 </div>
-
 </body>
 </html>
 """
@@ -404,6 +365,21 @@ def generate():
     if not picks:
         return "No hay picks disponibles hoy"
     return format_message(date_label, picks, tier)
+
+
+@app.get("/send")
+def send():
+    date_label, picks, source, tier, candidates = generate_daily_picks(
+        None,
+        FOOTBALL_DATA_API_TOKEN,
+        store,
+        strategy="official",
+    )
+    if not picks:
+        return "No hay picks para enviar"
+    message = format_message(date_label, picks, tier)
+    send_message(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
+    return "Enviado"
 
 
 @app.get("/history")
