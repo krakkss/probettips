@@ -122,6 +122,11 @@ background:linear-gradient(135deg,var(--primary),#00c26e);
 color:black;
 }
 
+button:disabled{
+opacity:0.6;
+cursor:not-allowed;
+}
+
 .card{
 background:var(--card);
 padding:22px;
@@ -143,6 +148,15 @@ font-size:13px;
 color:#cfd8dc;
 }
 
+.badge-success{
+margin-top:12px;
+padding:10px;
+border-radius:10px;
+background:#003d24;
+color:#00ff88;
+font-weight:700;
+}
+
 .footer{
 text-align:center;
 margin-top:30px;
@@ -160,10 +174,49 @@ margin-top:15px;
 
 <script>
 
+let lastGeneratedMessage = null;
+let alreadySent = false;
+
 async function generatePick(){
+const resultDiv = document.getElementById("pickResult");
+const sendBtn = document.getElementById("sendBtn");
+
+resultDiv.style.display="block";
+resultDiv.innerHTML="Generando pick... ⏳";
+sendBtn.style.display="none";
+sendBtn.disabled=false;
+alreadySent=false;
+
+try{
 const res = await fetch("/generate");
 const text = await res.text();
-alert(text);
+
+lastGeneratedMessage = text;
+
+resultDiv.innerHTML = "<pre style='white-space:pre-wrap'>" + text + "</pre>";
+sendBtn.style.display="inline-block";
+}catch{
+resultDiv.innerHTML="Error generando pick.";
+}
+}
+
+async function sendToTelegram(){
+if(!lastGeneratedMessage || alreadySent) return;
+
+const sendBtn = document.getElementById("sendBtn");
+const resultDiv = document.getElementById("pickResult");
+
+sendBtn.disabled=true;
+sendBtn.innerText="Enviando...";
+
+await fetch("/send");
+
+alreadySent=true;
+sendBtn.innerText="Enviado ✅";
+
+resultDiv.innerHTML += "<div class='badge-success'>✅ Pick guardado en BD y enviado a Telegram</div>";
+
+loadHistory();
 }
 
 function resetStats(){
@@ -322,7 +375,10 @@ window.onload=function(){loadHistory();}
 <button onclick="loadHistory(7)">7 días</button>
 <button onclick="loadHistory(30)">30 días</button>
 <button class="primary" onclick="generatePick()">Generar Pick</button>
+<button id="sendBtn" style="display:none;" onclick="sendToTelegram()">Enviar a Telegram</button>
 </div>
+
+<div class="card" id="pickResult" style="display:none;"></div>
 
 <canvas id="equity" width="800" height="250"></canvas>
 
