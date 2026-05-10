@@ -132,14 +132,22 @@ def main() -> int:
                 _, official_reference, _, _, _ = generate_daily_picks(args.date, api_token, store, strategy="official")
             except Exception:
                 official_reference = []
+    excluded_for_shadow = None
+    if requested_strategy == "shadow" and official_reference:
+        # Excluir solo el mismo pick exacto (match_id + market), no todo el partido
+        excluded_for_shadow = {
+            (
+                pick["match_id"] if isinstance(pick, dict) else pick.match_id,
+                pick["market"] if isinstance(pick, dict) else pick.market,
+            )
+            for pick in official_reference
+        }
+
     date_label, picks, source, recommendation_tier, calibration_candidates = generate_daily_picks(
         args.date,
         api_token,
         store,
-        excluded_match_ids={
-            pick["match_id"] if isinstance(pick, dict) else pick.match_id
-            for pick in official_reference
-        } if requested_strategy == "shadow" else None,
+        excluded_match_ids=excluded_for_shadow,
         strategy=requested_strategy,
     )
     if not picks:
