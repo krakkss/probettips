@@ -13,6 +13,8 @@ from probettips.analysis import (
 from probettips.models import Pick
 
 BOOKMAKER_ODDS_HAIRCUT = 0.12
+OFFICIAL_MIN_LEG_ODDS = 1.14
+LOW_VALUE_MARKETS = {"Mas de 0.5 goles", "Más de 0.5 goles"}
 
 
 def choose_two_picks(
@@ -28,6 +30,13 @@ def choose_two_picks(
     eligible.sort(key=lambda item: composite_pick_score(item, market_calibrations), reverse=True)
     if not eligible:
         return [], None
+    official_eligible = [
+        pick for pick in eligible
+        if adjusted_odds_for_bookmaker(pick.odds) >= OFFICIAL_MIN_LEG_ODDS
+        and pick.market not in LOW_VALUE_MARKETS
+    ]
+    if official_eligible:
+        eligible = official_eligible
 
     strong_single = None
     strong_combo: list[Pick] = []
@@ -208,6 +217,7 @@ def composite_pick_score(pick: Pick, market_calibrations: dict[str, MarketCalibr
     probability = effective_probability(pick, market_calibrations)
     threshold_edge = max(0.0, probability - effective_threshold(pick, market_calibrations))
     core_bonus = market_core_bonus(pick.market)
+    value_penalty = _value_penalty(pick)
     calibration = market_calibrations.get(pick.market) if market_calibrations else None
     historical_hit_rate = calibration.posterior_hit_rate if calibration else probability
     volatility_penalty = calibration.volatility_penalty if calibration else 0.0
@@ -220,6 +230,7 @@ def composite_pick_score(pick: Pick, market_calibrations: dict[str, MarketCalibr
         + (pick.market_stability * 0.10)
         - (pick.risk_score * 0.18)
         - (pick.context_penalty * 0.45)
+        - value_penalty
         + (threshold_edge * 0.12)
         + core_bonus
     )
@@ -237,6 +248,7 @@ def composite_pair_score(
     combined_stability = (first.market_stability + second.market_stability) / 2
     combined_risk = (first.risk_score + second.risk_score) / 2
     market_bias_bonus = (market_core_bonus(first.market) + market_core_bonus(second.market)) / 2
+    value_penalty = (_value_penalty(first) + _value_penalty(second)) / 2
     first_calibration = market_calibrations.get(first.market) if market_calibrations else None
     second_calibration = market_calibrations.get(second.market) if market_calibrations else None
     historical_hit_rate = (
@@ -264,6 +276,7 @@ def composite_pair_score(
         + (combined_stability * 0.08)
         - (combined_risk * 0.16)
         - ((first.context_penalty + second.context_penalty) * 0.22)
+        - value_penalty
         + (threshold_edge * 0.10)
         + market_bias_bonus
         + mixed_bonus
@@ -320,3 +333,13 @@ def adjusted_odds_for_bookmaker(estimated_odds: float) -> float:
         return round(estimated_odds, 2)
     reduced_margin = (estimated_odds - 1.0) * (1 - BOOKMAKER_ODDS_HAIRCUT)
     return round(1.0 + reduced_margin, 2)
+
+
+def _value_penalty(pick: Pick) -> float:
+    effective_odds = adjusted_odds_for_bookmaker(pick.odds)
+    penalty = 0.0
+    if pick.market in LOW_VALUE_MARKETS:
+        penalty += 0.14
+    if effective_odds < OFFICIAL_MIN_LEG_ODDS:
+        penalty += min(0.10, (OFFICIAL_MIN_LEG_ODDS - effective_odds) * 1.6)
+    return penalty
