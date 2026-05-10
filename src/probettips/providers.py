@@ -171,31 +171,31 @@ class FootballDataProvider:
 FLASHSCORE_LEAGUES = {
     "PD": {
         "league": "La Liga",
-        "url": "https://www.flashscore.es/futbol/espana/laliga-ea-sports/",
+        "url": "https://www.flashscore.com/football/spain/laliga/fixtures/",
     },
     "SD": {
         "league": "Segunda Division",
-        "url": "https://www.flashscore.es/futbol/espana/laliga-hypermotion/",
+        "url": "https://www.flashscore.com/football/spain/laliga2/fixtures/",
     },
     "BL1": {
         "league": "Bundesliga",
-        "url": "https://www.flashscore.es/futbol/alemania/bundesliga/",
+        "url": "https://www.flashscore.com/football/germany/bundesliga/fixtures/",
     },
     "SA": {
         "league": "Serie A",
-        "url": "https://www.flashscore.es/futbol/italia/serie-a/",
+        "url": "https://www.flashscore.com/football/italy/serie-a/fixtures/",
     },
     "FL1": {
         "league": "Ligue 1",
-        "url": "https://www.flashscore.es/futbol/francia/ligue-1/",
+        "url": "https://www.flashscore.com/football/france/ligue-1/fixtures/",
     },
     "PL": {
         "league": "Premier League",
-        "url": "https://www.flashscore.es/futbol/inglaterra/premier-league/",
+        "url": "https://www.flashscore.com/football/england/premier-league/fixtures/",
     },
     "PPL": {
         "league": "Primeira Liga",
-        "url": "https://www.flashscore.es/futbol/portugal/liga-portugal/",
+        "url": "https://www.flashscore.com/football/portugal/liga-portugal/fixtures/",
     },
 }
 
