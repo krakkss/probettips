@@ -195,7 +195,7 @@ FLASHSCORE_LEAGUES = {
     },
     "PPL": {
         "league": "Primeira Liga",
-        "url": "https://www.flashscore.es/futbol/portugal/liga-portugal-betclic/",
+        "url": "https://www.flashscore.es/futbol/portugal/liga-portugal/",
     },
 }
 
@@ -213,7 +213,10 @@ class FlashscoreScheduleProvider:
             if not league_config:
                 continue
 
-            page_text = self._fetch_page_text(league_config["url"])
+            try:
+                page_text = self._fetch_page_text(league_config["url"])
+            except Exception:
+                continue
             pairings = self._extract_pairings_for_date(page_text, date_token)
             if not pairings:
                 continue

@@ -120,11 +120,18 @@ def main() -> int:
     official_reference: list = []
     if requested_strategy == "shadow":
         lookup_date = args.date or date.today().isoformat()
-        stored_official = store.get_daily_tip(lookup_date, "official") if hasattr(store, "get_daily_tip") else None
+        stored_official = None
+        try:
+            stored_official = store.get_daily_tip(lookup_date, "official") if hasattr(store, "get_daily_tip") else None
+        except Exception:
+            stored_official = None
         if stored_official and stored_official.get("picks"):
             official_reference = stored_official["picks"]
         else:
-            _, official_reference, _, _, _ = generate_daily_picks(args.date, api_token, store, strategy="official")
+            try:
+                _, official_reference, _, _, _ = generate_daily_picks(args.date, api_token, store, strategy="official")
+            except Exception:
+                official_reference = []
     date_label, picks, source, recommendation_tier, calibration_candidates = generate_daily_picks(
         args.date,
         api_token,
