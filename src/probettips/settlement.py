@@ -6,12 +6,15 @@ import urllib.request
 from typing import Any
 
 from probettips.history import compute_stats, load_history
+from probettips.providers import FootballDataProvider
 
 
 def settle_pending_tickets(store, api_token: str) -> dict:
     tickets = load_history(store)
     checked_count = 0
     settled_count = 0
+    provider = FootballDataProvider(api_token) if api_token else None
+    result_cache: dict[tuple[str, str, str, str], dict | None] = {}
 
     for ticket in tickets:
         if ticket.get("status") != "pending":
@@ -22,7 +25,7 @@ def settle_pending_tickets(store, api_token: str) -> dict:
             continue
 
         checked_count += 1
-        ticket_result = _resolve_ticket(ticket, picks, api_token)
+        ticket_result = _resolve_ticket(ticket, picks, api_token, provider, result_cache)
         if not ticket_result:
             continue
 
@@ -38,6 +41,8 @@ def settle_pending_tickets(store, api_token: str) -> dict:
 def settle_tickets(store, api_token: str, date_label: str | None = None) -> tuple[list[dict], dict]:
     entries = load_history(store)
     updated: list[dict] = []
+    provider = FootballDataProvider(api_token) if api_token else None
+    result_cache: dict[tuple[str, str, str, str], dict | None] = {}
 
     for ticket in entries:
         if ticket.get("status") != "pending":
@@ -49,7 +54,7 @@ def settle_tickets(store, api_token: str, date_label: str | None = None) -> tupl
         if not picks:
             continue
 
-        ticket_result = _resolve_ticket(ticket, picks, api_token)
+        ticket_result = _resolve_ticket(ticket, picks, api_token, provider, result_cache)
         if not ticket_result:
             continue
 
@@ -67,10 +72,18 @@ def settle_tickets(store, api_token: str, date_label: str | None = None) -> tupl
     return updated, compute_stats(latest_entries, strategy="official")
 
 
-def check_match_result(pick: dict[str, Any], api_token: str) -> tuple[str, bool | None, dict[str, int] | None]:
+def check_match_result(
+    pick: dict[str, Any],
+    api_token: str,
+    provider: FootballDataProvider | None = None,
+    result_cache: dict[tuple[str, str, str, str], dict | None] | None = None,
+) -> tuple[str, bool | None, dict[str, int] | None]:
     match_id = pick.get("match_id")
     if not match_id:
         return "pending", None, None
+
+    if str(match_id).startswith("flashscore::"):
+        return _check_flashscore_match_result(pick, api_token, provider, result_cache)
 
     url = f"https://api.football-data.org/v4/matches/{match_id}"
     request = urllib.request.Request(url, headers={"X-Auth-Token": api_token}, method="GET")
@@ -96,6 +109,45 @@ def check_match_result(pick: dict[str, Any], api_token: str) -> tuple[str, bool 
         return "pending", None, None
 
     return "finished", is_win, {"home": home_goals, "away": away_goals}
+
+
+def _check_flashscore_match_result(
+    pick: dict[str, Any],
+    api_token: str,
+    provider: FootballDataProvider | None = None,
+    result_cache: dict[tuple[str, str, str, str], dict | None] | None = None,
+) -> tuple[str, bool | None, dict[str, int] | None]:
+    parsed = _parse_flashscore_match_id(str(pick.get("match_id", "")))
+    if not parsed:
+        return "pending", None, None
+
+    competition_code, date_str, home_team, away_team = parsed
+    cache_key = (competition_code, date_str, home_team, away_team)
+    if result_cache is not None and cache_key in result_cache:
+        result = result_cache[cache_key]
+    else:
+        active_provider = provider or FootballDataProvider(api_token)
+        try:
+            result = active_provider.find_match_result(competition_code, date_str, home_team, away_team)
+        except Exception:
+            return "pending", None, None
+        if result_cache is not None:
+            result_cache[cache_key] = result
+
+    if not result:
+        return "pending", None, None
+    if result.get("status") not in {"FINISHED", "AWARDED"}:
+        return "pending", None, None
+
+    home_goals = result.get("home")
+    away_goals = result.get("away")
+    if home_goals is None or away_goals is None:
+        return "pending", None, None
+
+    is_win = evaluate_market(pick.get("market", ""), int(home_goals), int(away_goals))
+    if is_win is None:
+        return "pending", None, None
+    return "finished", is_win, {"home": int(home_goals), "away": int(away_goals)}
 
 
 def evaluate_market(market: str, home_goals: int, away_goals: int) -> bool | None:
@@ -127,13 +179,19 @@ def evaluate_market(market: str, home_goals: int, away_goals: int) -> bool | Non
     return None
 
 
-def _resolve_ticket(ticket: dict, picks: list[dict], api_token: str) -> dict | None:
+def _resolve_ticket(
+    ticket: dict,
+    picks: list[dict],
+    api_token: str,
+    provider: FootballDataProvider | None = None,
+    result_cache: dict[tuple[str, str, str, str], dict | None] | None = None,
+) -> dict | None:
     all_finished = True
     overall_result = "win"
     leg_results: list[dict[str, Any]] = []
 
     for pick in picks:
-        match_status, is_win, details = check_match_result(pick, api_token)
+        match_status, is_win, details = check_match_result(pick, api_token, provider, result_cache)
         leg_results.append(
             {
                 "match_id": pick.get("match_id"),
@@ -154,10 +212,11 @@ def _resolve_ticket(ticket: dict, picks: list[dict], api_token: str) -> dict | N
     if not all_finished:
         return None
 
+    symbol = "✅" if overall_result == "win" else "❌"
     return {
         "result": overall_result,
         "settlement": {
-            "symbol": "✅" if overall_result == "win" else "❌",
+            "symbol": symbol,
             "legs": leg_results,
         },
     }
@@ -185,6 +244,14 @@ def _ensure_pick_list(value: Any) -> list[dict]:
     if isinstance(value, list):
         return value
     return []
+
+
+def _parse_flashscore_match_id(match_id: str) -> tuple[str, str, str, str] | None:
+    parts = match_id.split("::", 4)
+    if len(parts) != 5:
+        return None
+    _, competition_code, date_str, home_team, away_team = parts
+    return competition_code, date_str, home_team, away_team
 
 
 def _ssl_context() -> ssl.SSLContext:

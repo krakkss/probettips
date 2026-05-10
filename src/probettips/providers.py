@@ -20,9 +20,10 @@ COMPETITIONS = {
     "SA": "Serie A",
     "FL1": "Ligue 1",
     "PL": "Premier League",
+    "PPL": "Primeira Liga",
 }
 
-DEFAULT_COMPETITIONS = ["PD", "SD", "BL1", "SA", "FL1", "PL"]
+DEFAULT_COMPETITIONS = ["PD", "SD", "BL1", "SA", "FL1", "PL", "PPL"]
 
 
 class FootballDataProvider:
@@ -30,6 +31,7 @@ class FootballDataProvider:
 
     def __init__(self, api_token: str) -> None:
         self.api_token = api_token
+        self._competition_match_cache: dict[tuple[str, str], dict] = {}
 
     def get_matches_for_date(self, date_str: str, competitions: Iterable[str]) -> list[Match]:
         matches: list[Match] = []
@@ -82,6 +84,43 @@ class FootballDataProvider:
             "home_team": payload.get("homeTeam", {}).get("name"),
             "away_team": payload.get("awayTeam", {}).get("name"),
         }
+
+    def find_match_result(self, competition_code: str, date_str: str, home_team: str, away_team: str) -> dict | None:
+        payload = self._get_competition_matches_for_date(competition_code, date_str)
+        target_home_variants = build_name_variants(home_team)
+        target_away_variants = build_name_variants(away_team)
+
+        for item in payload.get("matches", []):
+            candidate_home = item.get("homeTeam", {}).get("name", "")
+            candidate_away = item.get("awayTeam", {}).get("name", "")
+            if not names_match(target_home_variants, candidate_home):
+                continue
+            if not names_match(target_away_variants, candidate_away):
+                continue
+
+            score = item.get("score", {})
+            full_time = score.get("fullTime", {}) or {}
+            return {
+                "status": item.get("status"),
+                "home": full_time.get("home"),
+                "away": full_time.get("away"),
+                "home_team": candidate_home,
+                "away_team": candidate_away,
+            }
+        return None
+
+    def _get_competition_matches_for_date(self, competition_code: str, date_str: str) -> dict:
+        cache_key = (competition_code, date_str)
+        if cache_key in self._competition_match_cache:
+            return self._competition_match_cache[cache_key]
+
+        next_day = (date.fromisoformat(date_str) + timedelta(days=1)).isoformat()
+        payload = self._get_json(
+            f"/competitions/{competition_code}/matches",
+            {"dateFrom": date_str, "dateTo": next_day},
+        )
+        self._competition_match_cache[cache_key] = payload
+        return payload
 
     def _get_competition_strength_table(self, code: str) -> dict[str, dict[str, float | int]]:
         payload = self._get_json(f"/competitions/{code}/standings")
@@ -153,6 +192,10 @@ FLASHSCORE_LEAGUES = {
     "PL": {
         "league": "Premier League",
         "url": "https://www.flashscore.es/futbol/inglaterra/premier-league/",
+    },
+    "PPL": {
+        "league": "Primeira Liga",
+        "url": "https://www.flashscore.es/futbol/portugal/liga-portugal-betclic/",
     },
 }
 
@@ -363,6 +406,17 @@ def build_name_variants(name: str) -> set[str]:
     normalized = normalize_team_name(name)
     stripped = strip_generic_tokens(normalized)
     return {normalized, stripped} - {""}
+
+
+def names_match(expected_variants: set[str], candidate_name: str) -> bool:
+    candidate_variants = build_name_variants(candidate_name)
+    if expected_variants & candidate_variants:
+        return True
+    for variant in expected_variants:
+        alias_target = TEAM_ALIASES.get(variant)
+        if alias_target and build_name_variants(alias_target) & candidate_variants:
+            return True
+    return False
 
 
 def normalize_team_name(name: str) -> str:

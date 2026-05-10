@@ -166,11 +166,12 @@ def build_analysis_report(entries: list[dict], rolling_days: int = CALIBRATION_W
     settled_entries = [entry for entry in entries if entry.get("status") == "settled"]
     settled_legs = flatten_settled_legs(settled_entries)
     calibrations = build_market_calibrations(settled_entries)
+    alternative_entries = [entry for entry in settled_entries if entry.get("strategy", "official") != "official"]
 
     return {
         "overall": _build_tip_summary(settled_entries),
         "official": _build_tip_summary([entry for entry in settled_entries if entry.get("strategy", "official") == "official"]),
-        "shadow": _build_tip_summary([entry for entry in settled_entries if entry.get("strategy", "official") == "shadow"]),
+        "shadow": _build_tip_summary(alternative_entries),
         "rolling_60_days": _build_tip_summary(_filter_entries_by_days(settled_entries, CALIBRATION_WINDOW_DAYS)),
         "rolling_30_days": _build_tip_summary(_filter_entries_by_days(settled_entries, VOLATILITY_WINDOW_DAYS)),
         "rolling_custom_days": _build_tip_summary(_filter_entries_by_days(settled_entries, rolling_days)),

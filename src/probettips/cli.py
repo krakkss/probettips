@@ -77,6 +77,45 @@ def main() -> int:
         print(json.dumps(entries, indent=2, ensure_ascii=False))
         return 0
 
+    if args.command == "settle":
+        settled, stats = settle_tickets(store, api_token, args.date)
+        if not settled:
+            if args.date:
+                entries = load_history(store)
+                existing = next(
+                    (
+                        entry for entry in entries
+                        if entry["date"] == args.date
+                        and entry.get("status") == "settled"
+                        and entry.get("strategy", "official") == "official"
+                    ),
+                    None,
+                )
+                if existing:
+                    print(format_settlement_message(existing, compute_stats(entries, strategy="official")))
+                    return 0
+            print(json.dumps({"message": "No hay pronosticos liquidados todavia", "stats": stats}, indent=2, ensure_ascii=False))
+            return 0
+
+        all_entries = load_history(store)
+        summaries = [
+            format_settlement_message(
+                ticket,
+                compute_stats(all_entries, strategy=ticket.get("strategy", "official")),
+            )
+            for ticket in settled
+        ]
+        output = "\n\n---\n\n".join(summaries)
+        print(output)
+
+        if args.notify:
+            if not bot_token or not chat_id:
+                print("Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID en .env", file=sys.stderr)
+                return 1
+            for summary in summaries:
+                send_message(bot_token, chat_id, summary)
+        return 0
+
     requested_strategy = getattr(args, "strategy", "official")
     official_reference: list = []
     if requested_strategy == "shadow":
@@ -160,45 +199,6 @@ def main() -> int:
 
         response = send_message(bot_token, chat_id, message)
         print(json.dumps(response, indent=2, ensure_ascii=False))
-        return 0
-
-    if args.command == "settle":
-        settled, stats = settle_tickets(store, api_token, args.date)
-        if not settled:
-            if args.date:
-                entries = load_history(store)
-                existing = next(
-                    (
-                        entry for entry in entries
-                        if entry["date"] == args.date
-                        and entry.get("status") == "settled"
-                        and entry.get("strategy", "official") == "official"
-                    ),
-                    None,
-                )
-                if existing:
-                    print(format_settlement_message(existing, compute_stats(entries, strategy="official")))
-                    return 0
-            print(json.dumps({"message": "No hay pronosticos liquidados todavia", "stats": stats}, indent=2, ensure_ascii=False))
-            return 0
-
-        all_entries = load_history(store)
-        summaries = [
-            format_settlement_message(
-                ticket,
-                compute_stats(all_entries, strategy=ticket.get("strategy", "official")),
-            )
-            for ticket in settled
-        ]
-        output = "\n\n---\n\n".join(summaries)
-        print(output)
-
-        if args.notify:
-            if not bot_token or not chat_id:
-                print("Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID en .env", file=sys.stderr)
-                return 1
-            for summary in summaries:
-                send_message(bot_token, chat_id, summary)
         return 0
 
     if not bot_token or not chat_id:
