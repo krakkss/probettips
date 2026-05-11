@@ -200,6 +200,38 @@ FLASHSCORE_LEAGUES = {
 }
 
 
+SOCCERWAY_LEAGUES = {
+    "PD": {
+        "league": "La Liga",
+        "url": "https://es.soccerway.com/espana/laliga-ea-sports/",
+    },
+    "SD": {
+        "league": "Segunda Division",
+        "url": "https://es.soccerway.com/espana/laliga-hypermotion/",
+    },
+    "BL1": {
+        "league": "Bundesliga",
+        "url": "https://es.soccerway.com/alemania/bundesliga/",
+    },
+    "SA": {
+        "league": "Serie A",
+        "url": "https://es.soccerway.com/italy/serie-a/",
+    },
+    "FL1": {
+        "league": "Ligue 1",
+        "url": "https://es.soccerway.com/france/ligue-1/",
+    },
+    "PL": {
+        "league": "Premier League",
+        "url": "https://es.soccerway.com/inglaterra/premier-league/",
+    },
+    "PPL": {
+        "league": "Primeira Liga",
+        "url": "https://es.soccerway.com/portugal/liga-portugal/",
+    },
+}
+
+
 class FlashscoreScheduleProvider:
     def __init__(self, strength_provider: FootballDataProvider | None = None) -> None:
         self.strength_provider = strength_provider
@@ -216,8 +248,16 @@ class FlashscoreScheduleProvider:
             try:
                 page_text = self._fetch_page_text(league_config["url"])
             except Exception:
-                continue
+                page_text = ""
             pairings = self._extract_pairings_for_date(page_text, date_token)
+            if not pairings:
+                soccerway_config = SOCCERWAY_LEAGUES.get(code)
+                if soccerway_config:
+                    try:
+                        soccerway_text = self._fetch_page_text(soccerway_config["url"])
+                        pairings = self._extract_pairings_for_date(soccerway_text, date_token)
+                    except Exception:
+                        pairings = []
             if not pairings:
                 continue
 

@@ -25,9 +25,9 @@ def generate_daily_picks(
         schedule_provider = FlashscoreScheduleProvider(strength_provider)
         matches = schedule_provider.get_matches_for_date(date_label, DEFAULT_COMPETITIONS)
         leagues_with_matches = sorted({match.league for match in matches})
-        source = "flashscore.es + football-data.org"
+        source = "flashscore.es + soccerway.com + football-data.org"
         if leagues_with_matches:
-            source = f"flashscore.es + football-data.org ({', '.join(leagues_with_matches)})"
+            source = f"flashscore.es + soccerway.com + football-data.org ({', '.join(leagues_with_matches)})"
         if not matches:
             matches = strength_provider.get_matches_for_date(date_label, DEFAULT_COMPETITIONS)
             leagues_with_matches = sorted({match.league for match in matches})
