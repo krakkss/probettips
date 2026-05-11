@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import mean, pstdev
 
+from probettips.history import strategy_bucket
+
 
 MARKET_PRIORS: dict[str, tuple[float, float]] = {
     "1X": (16.0, 4.0),
@@ -212,6 +214,8 @@ def build_analysis_report(entries: list[dict], rolling_days: int = CALIBRATION_W
         "legs_overall": _build_leg_summary(settled_legs),
         "legs_rolling_60_days": _build_leg_summary(_filter_legs_by_days(settled_legs, CALIBRATION_WINDOW_DAYS)),
         "legs_rolling_30_days": _build_leg_summary(_filter_legs_by_days(settled_legs, VOLATILITY_WINDOW_DAYS)),
+        "strategies": _build_strategy_breakdown(settled_entries),
+        "legs_by_strategy": _build_leg_breakdown_by_strategy(settled_legs),
         "market_breakdown": _build_market_breakdown(settled_entries, calibrations),
     }
 
@@ -332,6 +336,30 @@ def _build_market_breakdown(entries: list[dict], calibrations: dict[str, MarketC
         )
     rows.sort(key=lambda row: (-row["sample_size_60"], -(row["reliability_score"] or 0.0), row["market"]))
     return rows
+
+
+def _build_strategy_breakdown(entries: list[dict]) -> dict[str, dict]:
+    grouped = {
+        "official": [],
+        "shadow_auto": [],
+        "shadow_manual": [],
+        "other": [],
+    }
+    for entry in entries:
+        grouped[strategy_bucket(entry.get("strategy"))].append(entry)
+    return {name: _build_tip_summary(grouped_entries) for name, grouped_entries in grouped.items()}
+
+
+def _build_leg_breakdown_by_strategy(legs: list[dict]) -> dict[str, dict]:
+    grouped = {
+        "official": [],
+        "shadow_auto": [],
+        "shadow_manual": [],
+        "other": [],
+    }
+    for leg in legs:
+        grouped[strategy_bucket(leg.get("strategy"))].append(leg)
+    return {name: _build_leg_summary(grouped_legs) for name, grouped_legs in grouped.items()}
 
 
 def _filter_entries_by_days(entries: list[dict], rolling_days: int) -> list[dict]:

@@ -83,3 +83,46 @@ def compute_stats(entries: list[dict], strategy: str | None = "official") -> dic
         "total": total,
         "accuracy_pct": accuracy,
     }
+
+
+def strategy_bucket(strategy: str | None) -> str:
+    normalized = (strategy or "official").strip().lower()
+    if normalized == "official":
+        return "official"
+    if normalized == "shadow_manual":
+        return "shadow_manual"
+    if normalized.startswith("shadow"):
+        return "shadow_auto"
+    return "other"
+
+
+def compute_strategy_metrics(entries: list[dict]) -> dict[str, dict]:
+    buckets = {
+        "official": [],
+        "shadow_auto": [],
+        "shadow_manual": [],
+        "other": [],
+    }
+    for entry in entries:
+        buckets[strategy_bucket(entry.get("strategy"))].append(entry)
+
+    metrics: dict[str, dict] = {}
+    for bucket_name, bucket_entries in buckets.items():
+        settled = [entry for entry in bucket_entries if entry.get("status") == "settled"]
+        wins = sum(1 for entry in settled if entry.get("result") == "win")
+        losses = sum(1 for entry in settled if entry.get("result") == "loss")
+        total = len(bucket_entries)
+        resolved = len(settled)
+        profit_units = wins - losses
+        hit_rate = round((wins / resolved) * 100, 2) if resolved else 0.0
+        roi_pct = round((profit_units / total) * 100, 2) if total else 0.0
+        metrics[bucket_name] = {
+            "total": total,
+            "resolved": resolved,
+            "wins": wins,
+            "losses": losses,
+            "hit_rate_pct": hit_rate,
+            "profit_units": profit_units,
+            "roi_pct": roi_pct,
+        }
+    return metrics

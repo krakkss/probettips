@@ -4,7 +4,7 @@ from fastapi import Body, FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from probettips.config import get_env, load_env_file
-from probettips.history import load_history, upsert_ticket
+from probettips.history import compute_strategy_metrics, load_history, upsert_ticket
 from probettips.models import Pick
 from probettips.service import generate_daily_picks
 from probettips.supabase_store import SupabaseStore
@@ -140,6 +140,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .status-banner{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1px solid #1a3342;background:#0d1a24;color:#c7d8e5;font-size:13px}
 .status-banner.alt{border-color:#564400;background:#241f0a;color:#f4e7ad}
 .status-banner.success{border-color:#1f5f43;background:#0d2b1d;color:#a7f3d0}
+.strategy-card{margin-top:18px;background:#121a22;border:1px solid #1b2632;border-radius:16px;padding:18px}
+.strategy-card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.strategy-card-title h4{margin:0;font-size:18px}
+.strategy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.strategy-row{background:#141d27;border:1px solid #1f2b37;border-radius:12px;padding:12px}
+.strategy-row-head{font-size:12px;color:#9fb3c8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.strategy-row-metrics{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#e6edf3}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em}
 .badge.result-win{background:#133122;color:#79f2a7}
 .badge.result-loss{background:#35171b;color:#ff9eaa}
@@ -153,6 +160,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .feature-grid{grid-template-columns:1fr}
   .daily-summary{grid-template-columns:1fr}
+  .strategy-grid{grid-template-columns:1fr}
 }
 </style>
 <script>
@@ -308,9 +316,10 @@ async function settleResults(){
 async function loadHistory(days=null){
   activeFilterDays = days
   const res = await fetch("/history")
-  const data = await res.json()
+  const payload = await res.json()
+  const entries = Array.isArray(payload) ? payload : (payload.entries || [])
 
-  let filtered = [...data].reverse()
+  let filtered = [...entries].reverse()
   if(days){
     const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - days)
@@ -336,14 +345,30 @@ async function loadHistory(days=null){
   const hit = resolved ? Math.round((wins / resolved) * 100) : 0
   const roi = total ? (((wins - losses) / total) * 100).toFixed(1) : 0
 
+  const officialVisible = filtered.filter(x => (x.strategy || "official") === "official")
+  const shadowAutoVisible = filtered.filter(x => {
+    const strategy = (x.strategy || "").toLowerCase()
+    return strategy.startsWith("shadow") && strategy !== "shadow_manual"
+  })
+  const shadowManualVisible = filtered.filter(x => (x.strategy || "").toLowerCase() === "shadow_manual")
+
   document.getElementById("stat-hit").innerText = hit + "%"
   document.getElementById("stat-hit-sub").innerText = `${wins} aciertos / ${resolved || 0} resueltos`
   document.getElementById("stat-total").innerText = total
-  document.getElementById("stat-total-sub").innerText = `${filtered.filter(x => (x.strategy || "official") === "official").length} oficiales en rango`
+  document.getElementById("stat-total-sub").innerText = `Oficial ${officialVisible.length} | Auto ${shadowAutoVisible.length} | Manual ${shadowManualVisible.length}`
   document.getElementById("stat-roi").innerText = roi + "%"
   document.getElementById("stat-roi-sub").innerText = "Balance del historico visible"
   document.getElementById("stat-profit").innerText = equity + "u"
   document.getElementById("stat-profit-sub").innerText = "Unidades netas del tramo"
+
+  const officialMetrics = summarizeStrategyEntries(officialVisible)
+  const shadowAutoMetrics = summarizeStrategyEntries(shadowAutoVisible)
+  const shadowManualMetrics = summarizeStrategyEntries(shadowManualVisible)
+  document.getElementById("strategy-metrics").innerHTML = renderStrategyMetrics(
+    officialMetrics,
+    shadowAutoMetrics,
+    shadowManualMetrics
+  )
 
   let html = ""
   filtered.forEach((x, index) => {
@@ -380,6 +405,51 @@ async function loadHistory(days=null){
   document.getElementById("history").innerHTML = html || "<div class='history-item'>Sin historico todavia.</div>"
 }
 
+function renderStrategyMetrics(official, shadowAuto, shadowManual){
+  const rows = [
+    ["Official", official],
+    ["Shadow Auto", shadowAuto],
+    ["Shadow Manual", shadowManual],
+  ]
+  return rows.map(([label, metric]) => {
+    const total = metric ? metric.total : 0
+    const resolved = metric ? metric.resolved : 0
+    const hitRate = metric ? Number(metric.hit_rate_pct || 0).toFixed(1) : "0.0"
+    const roi = metric ? Number(metric.roi_pct || 0).toFixed(1) : "0.0"
+    const profit = metric ? metric.profit_units || 0 : 0
+    return `<div class='strategy-row'>
+      <div class='strategy-row-head'>${label}</div>
+      <div class='strategy-row-metrics'>
+        <span>${total} tips</span>
+        <span>${resolved} resueltos</span>
+        <span>Hit ${hitRate}%</span>
+        <span>ROI ${roi}%</span>
+        <span>${profit}u</span>
+      </div>
+    </div>`
+  }).join("")
+}
+
+function summarizeStrategyEntries(entries){
+  const settled = entries.filter(entry => entry.status === "settled")
+  const wins = settled.filter(entry => entry.result === "win").length
+  const losses = settled.filter(entry => entry.result === "loss").length
+  const resolved = wins + losses
+  const total = entries.length
+  const profit = wins - losses
+  const hitRate = resolved ? (wins / resolved) * 100 : 0
+  const roi = total ? (profit / total) * 100 : 0
+  return {
+    total,
+    resolved,
+    wins,
+    losses,
+    hit_rate_pct: hitRate,
+    profit_units: profit,
+    roi_pct: roi,
+  }
+}
+
 window.onload = function(){ initializeDashboard() }
 </script>
 </head>
@@ -404,6 +474,13 @@ window.onload = function(){ initializeDashboard() }
     <div class="stat"><div class="stat-label">Total Picks</div><div class="stat-value" id="stat-total">--</div><div class="stat-subvalue" id="stat-total-sub">--</div></div>
     <div class="stat"><div class="stat-label">ROI</div><div class="stat-value" id="stat-roi">--</div><div class="stat-subvalue" id="stat-roi-sub">--</div></div>
     <div class="stat"><div class="stat-label">Profit (u)</div><div class="stat-value" id="stat-profit">--</div><div class="stat-subvalue" id="stat-profit-sub">--</div></div>
+  </div>
+  <div class="strategy-card">
+    <div class="strategy-card-title">
+      <h4>Metricas por estrategia</h4>
+      <div class="section-note">Official vs sombras automaticas y manuales</div>
+    </div>
+    <div id="strategy-metrics" class="strategy-grid"></div>
   </div>
 </div>
 
@@ -487,7 +564,11 @@ def generate():
 
 @app.get("/history")
 def history():
-    return load_history(store)
+    entries = load_history(store)
+    return {
+        "entries": entries,
+        "strategy_summary": compute_strategy_metrics(entries),
+    }
 
 
 @app.post("/send")
