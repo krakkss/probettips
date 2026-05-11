@@ -306,12 +306,19 @@ def effective_threshold(pick: Pick, market_calibrations: dict[str, MarketCalibra
 
 def should_reject_pick(pick: Pick, market_calibrations: dict[str, MarketCalibration] | None = None) -> bool:
     calibration = market_calibrations.get(pick.market) if market_calibrations else None
+    effective_odds = adjusted_odds_for_bookmaker(pick.odds)
     if calibration and not calibration.enabled:
         return True
     if not market_needs_extra_evidence(pick.market, calibration):
         if calibration and calibration.sample_size_60 >= 6 and calibration.reliability_score < 0.62:
             return True
         if pick.context_penalty >= 0.08:
+            return True
+        if pick.risk_score >= 0.17:
+            return True
+        if pick.risk_score >= 0.15 and effective_odds <= 1.24:
+            return True
+        if pick.context_penalty >= 0.03 and effective_odds <= 1.24:
             return True
         return False
 

@@ -218,11 +218,11 @@ def estimate_confidence(match: Match) -> float:
 
 def estimate_risk_score(match: Match, delta: float) -> float:
     parity_risk = max(0.0, 0.28 - abs(delta)) * 1.4
-    data_risk = 0.12 if _looks_like_fallback(match.home_rank, match.home_ppg, match.home_goal_diff) else 0.0
-    data_risk += 0.12 if _looks_like_fallback(match.away_rank, match.away_ppg, match.away_goal_diff) else 0.0
+    data_risk = 0.16 if _looks_like_fallback(match.home_rank, match.home_ppg, match.home_goal_diff) else 0.0
+    data_risk += 0.16 if _looks_like_fallback(match.away_rank, match.away_ppg, match.away_goal_diff) else 0.0
     low_scoring_risk = max(0.0, 2.4 - (match.home_ppg + match.away_ppg)) * 0.05
     rank_risk = 0.06 if abs(match.home_rank - match.away_rank) <= 2 else 0.0
-    return min(0.38, parity_risk + data_risk + low_scoring_risk + rank_risk)
+    return min(0.42, parity_risk + data_risk + low_scoring_risk + rank_risk)
 
 
 def compute_dynamic_threshold(

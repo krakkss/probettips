@@ -70,7 +70,8 @@ class MarketCalibration:
 
 
 def build_market_calibrations(entries: list[dict]) -> dict[str, MarketCalibration]:
-    settled_legs = flatten_settled_legs([entry for entry in entries if entry.get("status") == "settled"])
+    learning_entries = _entries_for_learning(entries)
+    settled_legs = flatten_settled_legs([entry for entry in learning_entries if entry.get("status") == "settled"])
     grouped: dict[str, list[dict]] = defaultdict(list)
     for leg in settled_legs:
         grouped[leg["market"]].append(leg)
@@ -137,6 +138,20 @@ def build_market_calibrations(entries: list[dict]) -> dict[str, MarketCalibratio
             disable_reason=disable_reason,
         )
     return calibrations
+
+
+def _entries_for_learning(entries: list[dict]) -> list[dict]:
+    filtered: list[dict] = []
+    for entry in entries:
+        strategy = entry.get("strategy", "official")
+        source = str(entry.get("source", "")).lower()
+        recommendation_tier = str(entry.get("recommendation_tier", "")).lower()
+        if strategy == "shadow_manual":
+            continue
+        if "manual" in source or recommendation_tier == "shadow_manual":
+            continue
+        filtered.append(entry)
+    return filtered
 
 
 def calibrated_probability(raw_probability: float, market: str, calibrations: dict[str, MarketCalibration] | None) -> float:
