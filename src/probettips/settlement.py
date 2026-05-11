@@ -17,7 +17,7 @@ def settle_pending_tickets(store, api_token: str) -> dict:
     result_cache: dict[tuple[str, str, str, str], dict | None] = {}
 
     for ticket in tickets:
-        if ticket.get("status") != "pending":
+        if not _needs_settlement_refresh(ticket):
             continue
 
         picks = _ensure_pick_list(ticket.get("picks"))
@@ -45,7 +45,7 @@ def settle_tickets(store, api_token: str, date_label: str | None = None) -> tupl
     result_cache: dict[tuple[str, str, str, str], dict | None] = {}
 
     for ticket in entries:
-        if ticket.get("status") != "pending":
+        if not _needs_settlement_refresh(ticket):
             continue
         if date_label and ticket.get("date") != date_label:
             continue
@@ -70,6 +70,15 @@ def settle_tickets(store, api_token: str, date_label: str | None = None) -> tupl
 
     latest_entries = load_history(store)
     return updated, compute_stats(latest_entries, strategy="official")
+
+
+def _needs_settlement_refresh(ticket: dict) -> bool:
+    status = ticket.get("status")
+    if status == "pending":
+        return True
+    if status == "settled" and not ticket.get("settlement"):
+        return True
+    return False
 
 
 def check_match_result(

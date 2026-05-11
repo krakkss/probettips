@@ -92,7 +92,10 @@ def main() -> int:
                     None,
                 )
                 if existing:
-                    print(format_settlement_message(existing, compute_stats(entries, strategy="official")))
+                    if existing.get("settlement"):
+                        print(format_settlement_message(existing, compute_stats(entries, strategy="official")))
+                    else:
+                        print(json.dumps({"message": "El tip ya estaba liquidado, pero aun no tiene detalle de settlement.", "ticket": existing}, indent=2, ensure_ascii=False))
                     return 0
             print(json.dumps({"message": "No hay pronosticos liquidados todavia", "stats": stats}, indent=2, ensure_ascii=False))
             return 0
