@@ -30,6 +30,11 @@ AVAILABILITY_KEYWORDS = (
     "doubtful",
     "duda",
     "unavailable",
+    "without",
+    "ruled out",
+    "fitness test",
+    "miss out",
+    "set to miss",
 )
 
 ROTATION_KEYWORDS = (
@@ -40,6 +45,10 @@ ROTATION_KEYWORDS = (
     "changes",
     "second string",
     "reserve side",
+    "lineup",
+    "line-up",
+    "starting xi",
+    "team news",
 )
 
 INSTABILITY_KEYWORDS = (
@@ -49,6 +58,13 @@ INSTABILITY_KEYWORDS = (
     "sacked",
     "crisis",
     "turmoil",
+)
+
+SEVERE_AVAILABILITY_KEYWORDS = (
+    "ruled out",
+    "set to miss",
+    "without",
+    "major doubt",
 )
 
 
@@ -74,7 +90,7 @@ class TeamNewsContextProvider:
             contexts[match.match_id] = MatchContext(
                 match_id=match.match_id,
                 penalty=round(penalty, 4),
-                alerts=alerts,
+                alerts=alerts[:4],
                 source="Google News RSS" if alerts else "",
             )
         return contexts
@@ -92,18 +108,22 @@ class TeamNewsContextProvider:
         availability_hits = 0
         rotation_hits = 0
         instability_hits = 0
+        severe_availability_hits = 0
         for title in titles:
             normalized_title = normalize_text(title)
             if any(keyword in normalized_title for keyword in AVAILABILITY_KEYWORDS):
                 availability_hits += 1
+            if any(keyword in normalized_title for keyword in SEVERE_AVAILABILITY_KEYWORDS):
+                severe_availability_hits += 1
             if any(keyword in normalized_title for keyword in ROTATION_KEYWORDS):
                 rotation_hits += 1
             if any(keyword in normalized_title for keyword in INSTABILITY_KEYWORDS):
                 instability_hits += 1
 
         penalty = min(
-            0.06,
+            0.08,
             (availability_hits * 0.02)
+            + (severe_availability_hits * 0.01)
             + (rotation_hits * 0.012)
             + (instability_hits * 0.008),
         )
@@ -111,12 +131,14 @@ class TeamNewsContextProvider:
         alerts: list[str] = []
         if availability_hits:
             alerts.append(f"{team_name}: las noticias recientes mencionan bajas o dudas de disponibilidad.")
+        if severe_availability_hits:
+            alerts.append(f"{team_name}: hay indicios de bajas importantes o jugadores que podrían perderse el partido.")
         if rotation_hits:
-            alerts.append(f"{team_name}: hay señales recientes de posibles rotaciones o descanso.")
+            alerts.append(f"{team_name}: hay señales recientes de posibles rotaciones, cambios de once o descanso.")
         if instability_hits:
             alerts.append(f"{team_name}: el contexto reciente apunta a cierta inestabilidad deportiva.")
 
-        result = (round(penalty, 4), alerts[:3])
+        result = (round(penalty, 4), alerts[:4])
         self._team_cache[cache_key] = result
         return result
 
@@ -160,9 +182,7 @@ def apply_match_context_to_picks(picks: list[Pick], match_contexts: dict[str, Ma
         adjusted_confidence = max(0.35, min(0.99, pick.confidence - (context.penalty * 0.85)))
         adjusted_risk = min(0.99, pick.risk_score + (context.penalty * 0.90))
         adjusted_threshold = min(0.98, pick.dynamic_threshold + (context.penalty * 0.35))
-        adjusted_rationale = (
-            f"{pick.rationale} Contexto reciente detectado: {' '.join(context.alerts)}"
-        )
+        adjusted_rationale = f"{pick.rationale} Contexto reciente detectado: {' '.join(context.alerts)}"
 
         adjusted.append(
             Pick(

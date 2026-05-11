@@ -42,6 +42,13 @@ BLOCK_MARKET_MIN_SAMPLE_30 = 8
 BLOCK_MARKET_MIN_SAMPLE_60 = 12
 BLOCK_MARKET_MIN_HIT_RATE = 0.65
 
+STRATEGY_LEARNING_WEIGHTS = {
+    "official": 1.0,
+    "shadow_auto_v1": 0.8,
+    "shadow_algo_v2": 0.8,
+    "shadow_manual": 0.65,
+}
+
 
 @dataclass(slots=True)
 class MarketCalibration:
@@ -53,6 +60,10 @@ class MarketCalibration:
     wins_total: int
     wins_60: int
     wins_30: int
+    weighted_sample_60: float
+    weighted_sample_30: float
+    weighted_wins_60: float
+    weighted_wins_30: float
     avg_model_probability_60: float
     avg_model_probability_30: float
     hit_rate_60: float | None
@@ -91,15 +102,19 @@ def build_market_calibrations(entries: list[dict]) -> dict[str, MarketCalibratio
         wins_total = sum(1 for leg in all_legs if leg["won"])
         wins_60 = sum(1 for leg in rolling_60 if leg["won"])
         wins_30 = sum(1 for leg in rolling_30 if leg["won"])
+        weighted_sample_60 = sum(float(leg.get("learning_weight", 1.0)) for leg in rolling_60)
+        weighted_sample_30 = sum(float(leg.get("learning_weight", 1.0)) for leg in rolling_30)
+        weighted_wins_60 = sum(float(leg.get("learning_weight", 1.0)) for leg in rolling_60 if leg["won"])
+        weighted_wins_30 = sum(float(leg.get("learning_weight", 1.0)) for leg in rolling_30 if leg["won"])
 
-        avg_pred_60 = mean([leg["probability"] for leg in rolling_60]) if rolling_60 else prior_mean
-        avg_pred_30 = mean([leg["probability"] for leg in rolling_30]) if rolling_30 else avg_pred_60
-        hit_rate_60 = (wins_60 / sample_60) if sample_60 else None
-        hit_rate_30 = (wins_30 / sample_30) if sample_30 else None
+        avg_pred_60 = weighted_mean(rolling_60, "probability", prior_mean)
+        avg_pred_30 = weighted_mean(rolling_30, "probability", avg_pred_60)
+        hit_rate_60 = (weighted_wins_60 / weighted_sample_60) if weighted_sample_60 else None
+        hit_rate_30 = (weighted_wins_30 / weighted_sample_30) if weighted_sample_30 else None
 
-        posterior = (prior_alpha + wins_60) / (prior_alpha + prior_beta + sample_60)
+        posterior = (prior_alpha + weighted_wins_60) / (prior_alpha + prior_beta + weighted_sample_60)
         raw_factor = posterior / max(avg_pred_60, 0.01)
-        factor_weight = min(0.8, sample_60 / (sample_60 + 18.0)) if sample_60 else 0.0
+        factor_weight = min(0.8, weighted_sample_60 / (weighted_sample_60 + 18.0)) if weighted_sample_60 else 0.0
         calibration_factor = 1.0 + ((raw_factor - 1.0) * factor_weight)
         calibration_factor = max(0.92, min(1.08, calibration_factor))
 
@@ -122,6 +137,10 @@ def build_market_calibrations(entries: list[dict]) -> dict[str, MarketCalibratio
             wins_total=wins_total,
             wins_60=wins_60,
             wins_30=wins_30,
+            weighted_sample_60=round(weighted_sample_60, 4),
+            weighted_sample_30=round(weighted_sample_30, 4),
+            weighted_wins_60=round(weighted_wins_60, 4),
+            weighted_wins_30=round(weighted_wins_30, 4),
             avg_model_probability_60=round(avg_pred_60, 4),
             avg_model_probability_30=round(avg_pred_30, 4),
             hit_rate_60=round(hit_rate_60, 4) if hit_rate_60 is not None else None,
@@ -146,9 +165,9 @@ def _entries_for_learning(entries: list[dict]) -> list[dict]:
         strategy = entry.get("strategy", "official")
         source = str(entry.get("source", "")).lower()
         recommendation_tier = str(entry.get("recommendation_tier", "")).lower()
-        if strategy == "shadow_manual":
+        if "manual_entry" in source and strategy == "shadow_manual":
             continue
-        if "manual" in source or recommendation_tier == "shadow_manual":
+        if recommendation_tier == "shadow_manual" and "manual_entry" in source:
             continue
         filtered.append(entry)
     return filtered
@@ -216,9 +235,23 @@ def flatten_settled_legs(entries: list[dict]) -> list[dict]:
                     "risk_score": float(pick.get("risk_score", 0.0)),
                     "dynamic_threshold": float(pick.get("dynamic_threshold", 0.0)),
                     "won": bool(leg.get("won")),
+                    "learning_weight": strategy_learning_weight(entry.get("strategy", "official")),
                 }
             )
     return flattened
+
+
+def strategy_learning_weight(strategy: str) -> float:
+    return STRATEGY_LEARNING_WEIGHTS.get(strategy, 0.75 if strategy != "official" else 1.0)
+
+
+def weighted_mean(legs: list[dict], field_name: str, default: float) -> float:
+    if not legs:
+        return default
+    total_weight = sum(float(leg.get("learning_weight", 1.0)) for leg in legs)
+    if total_weight <= 0:
+        return default
+    return sum(float(leg.get(field_name, 0.0)) * float(leg.get("learning_weight", 1.0)) for leg in legs) / total_weight
 
 
 def market_bias(market: str) -> str:
