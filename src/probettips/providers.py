@@ -23,6 +23,10 @@ COMPETITIONS = {
     "PPL": "Primeira Liga",
 }
 
+COMPETITION_CODE_ALIASES = {
+    "LL": "PD",
+}
+
 DEFAULT_COMPETITIONS = ["PD", "SD", "BL1", "SA", "FL1", "PL", "PPL"]
 
 
@@ -39,10 +43,11 @@ class FootballDataProvider:
         next_day = (date.fromisoformat(date_str) + timedelta(days=1)).isoformat()
 
         for code in competitions:
+            normalized_code = normalize_competition_code(code)
             try:
-                standings_cache[code] = self._get_competition_strength_table(code)
+                standings_cache[normalized_code] = self._get_competition_strength_table(normalized_code)
                 payload = self._get_json(
-                    f"/competitions/{code}/matches",
+                    f"/competitions/{normalized_code}/matches",
                     {"dateFrom": date_str, "dateTo": next_day},
                 )
             except Exception:
@@ -52,14 +57,14 @@ class FootballDataProvider:
                     continue
                 home_name = item["homeTeam"]["name"]
                 away_name = item["awayTeam"]["name"]
-                table = standings_cache[code]
+                table = standings_cache[normalized_code]
                 home_data = table.get(home_name, self._fallback_strength())
                 away_data = table.get(away_name, self._fallback_strength())
                 matches.append(
                     Match(
                         match_id=str(item["id"]),
-                        competition_code=code,
-                        league=COMPETITIONS.get(code, code),
+                        competition_code=normalized_code,
+                        league=COMPETITIONS.get(normalized_code, normalized_code),
                         home_team=home_name,
                         away_team=away_name,
                         kickoff=item["utcDate"].replace("T", " ").replace("Z", " UTC"),
@@ -86,7 +91,12 @@ class FootballDataProvider:
         }
 
     def find_match_result(self, competition_code: str, date_str: str, home_team: str, away_team: str) -> dict | None:
-        payload = self._get_competition_matches_for_date(competition_code, date_str)
+        competition_code = normalize_competition_code(competition_code)
+        try:
+            payload = self._get_competition_matches_for_date(competition_code, date_str)
+        except Exception:
+            payload = {}
+
         target_home_variants = build_name_variants(home_team)
         target_away_variants = build_name_variants(away_team)
 
@@ -107,6 +117,10 @@ class FootballDataProvider:
                 "home_team": candidate_home,
                 "away_team": candidate_away,
             }
+
+        scraped_result = scrape_match_result(competition_code, date_str, home_team, away_team)
+        if scraped_result:
+            return scraped_result
         return None
 
     def _get_competition_matches_for_date(self, competition_code: str, date_str: str) -> dict:
@@ -232,6 +246,115 @@ SOCCERWAY_LEAGUES = {
 }
 
 
+def scrape_match_result(
+    competition_code: str,
+    date_str: str,
+    home_team: str,
+    away_team: str,
+) -> dict | None:
+    date_token = date.fromisoformat(date_str).strftime("%d.%m.")
+    sources = []
+
+    soccerway_config = SOCCERWAY_LEAGUES.get(competition_code)
+    if soccerway_config:
+        soccerway_url = soccerway_config["url"].rstrip("/") + "/resultados/"
+        sources.append(soccerway_url)
+
+    flashscore_config = FLASHSCORE_LEAGUES.get(competition_code)
+    if flashscore_config:
+        flashscore_url = flashscore_config["url"].replace("/fixtures/", "/results/")
+        sources.append(flashscore_url)
+
+    for url in sources:
+        try:
+            page_text = _fetch_plain_text(url)
+            result = _extract_result_for_date(page_text, date_token, home_team, away_team)
+            if result:
+                return result
+        except Exception:
+            continue
+    return None
+
+
+def _fetch_plain_text(url: str) -> str:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0 Safari/537.36"
+            )
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20, context=_ssl_context()) as response:
+        raw_html = response.read().decode("utf-8", errors="ignore")
+
+    no_scripts = re.sub(r"<script.*?</script>", " ", raw_html, flags=re.DOTALL | re.IGNORECASE)
+    no_styles = re.sub(r"<style.*?</style>", " ", no_scripts, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", no_styles)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _extract_result_for_date(
+    page_text: str,
+    date_token: str,
+    home_team: str,
+    away_team: str,
+) -> dict | None:
+    day_segment = _extract_day_segment(page_text, date_token)
+    if not day_segment:
+        return None
+
+    target_home_variants = build_name_variants(home_team)
+    target_away_variants = build_name_variants(away_team)
+
+    for item in re.split(r"\s*,\s*", day_segment):
+        match = re.match(r"(.+?)\s+(\d+)\s*[-:]\s*(\d+)\s+(.+)", item)
+        if not match:
+            continue
+
+        candidate_home = _clean_team_name(match.group(1))
+        candidate_away = _clean_team_name(match.group(4))
+        if not candidate_home or not candidate_away:
+            continue
+        if not names_match(target_home_variants, candidate_home):
+            continue
+        if not names_match(target_away_variants, candidate_away):
+            continue
+
+        return {
+            "status": "FINISHED",
+            "home": int(match.group(2)),
+            "away": int(match.group(3)),
+            "home_team": candidate_home,
+            "away_team": candidate_away,
+        }
+
+    return None
+
+
+def _extract_day_segment(page_text: str, date_token: str) -> str:
+    day_segment_match = re.search(
+        rf"{re.escape(date_token)}\.?\s*(.*?)(?=(?:\d{{2}}\.\d{{2}}\.?)|$)",
+        page_text,
+    )
+    if not day_segment_match:
+        return ""
+    return day_segment_match.group(1)
+
+
+def _clean_team_name(name: str) -> str:
+    cleaned = re.sub(r"\s+", " ", name).strip(" ,.-")
+    cleaned = re.sub(
+        r"\s+\b(?:finalizado|final|aplazado|cancelado|postponed|abandoned)\b$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    return cleaned.strip()
+
+
 class FlashscoreScheduleProvider:
     def __init__(self, strength_provider: FootballDataProvider | None = None) -> None:
         self.strength_provider = strength_provider
@@ -294,42 +417,21 @@ class FlashscoreScheduleProvider:
             return {}
 
     def _fetch_page_text(self, url: str) -> str:
-        request = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0 Safari/537.36"
-                )
-            },
-        )
-        with urllib.request.urlopen(request, timeout=20, context=_ssl_context()) as response:
-            raw_html = response.read().decode("utf-8", errors="ignore")
-
-        no_scripts = re.sub(r"<script.*?</script>", " ", raw_html, flags=re.DOTALL | re.IGNORECASE)
-        no_styles = re.sub(r"<style.*?</style>", " ", no_scripts, flags=re.DOTALL | re.IGNORECASE)
-        text = re.sub(r"<[^>]+>", " ", no_styles)
-        text = html.unescape(text)
-        text = re.sub(r"\s+", " ", text)
-        return text
+        return _fetch_plain_text(url)
 
     def _extract_pairings_for_date(self, page_text: str, date_token: str) -> list[tuple[str, str]]:
-        day_segment_match = re.search(
-            rf"{re.escape(date_token)}\.\s*(.*?)(?=(?:\d{{2}}\.\d{{2}}\.)|$)",
-            page_text,
-        )
-        if not day_segment_match:
+        day_segment = _extract_day_segment(page_text, date_token)
+        if not day_segment:
             return []
 
         pairings: list[tuple[str, str]] = []
-        day_segment = day_segment_match.group(1)
         for item in day_segment.split(","):
             if " - " not in item and " – " not in item:
                 continue
             separator = " - " if " - " in item else " – "
             home_team, away_team = item.split(separator, 1)
-            clean_home = self._clean_team_name(home_team)
-            clean_away = self._clean_team_name(away_team)
+            clean_home = _clean_team_name(home_team)
+            clean_away = _clean_team_name(away_team)
             if clean_home and clean_away:
                 pairings.append((clean_home, clean_away))
         return pairings
@@ -338,11 +440,6 @@ class FlashscoreScheduleProvider:
     def _to_flashscore_date(date_str: str) -> str:
         parsed = date.fromisoformat(date_str)
         return parsed.strftime("%d.%m")
-
-    @staticmethod
-    def _clean_team_name(name: str) -> str:
-        cleaned = re.sub(r"\s+", " ", name).strip(" ,.-")
-        return cleaned
 
     @staticmethod
     def _fallback_strength() -> dict[str, float | int]:
@@ -362,6 +459,8 @@ TEAM_ALIASES = {
     "real betis": "Real Betis Balompié",
     "espanyol": "RCD Espanyol",
     "barcelona": "FC Barcelona",
+    "ath bilbao": "Athletic Club",
+    "athletic bilbao": "Athletic Club",
     "deportivo de la coruna": "Deportivo de La Coruña",
     "deportivo la coruna": "Deportivo de La Coruña",
     "eintracht francfort": "Eintracht Frankfurt",
@@ -394,8 +493,14 @@ GENERIC_TEAM_TOKENS = {
     "cf",
     "ac",
     "as",
+    "afc",
+    "ad",
+    "cd",
+    "cp",
     "rc",
     "sc",
+    "sco",
+    "osc",
     "tsg",
     "ssc",
     "vfb",
@@ -455,6 +560,10 @@ def names_match(expected_variants: set[str], candidate_name: str) -> bool:
     candidate_variants = build_name_variants(candidate_name)
     if expected_variants & candidate_variants:
         return True
+    for expected in expected_variants:
+        for candidate in candidate_variants:
+            if _variant_phrase_match(expected, candidate):
+                return True
     for variant in expected_variants:
         alias_target = TEAM_ALIASES.get(variant)
         if alias_target and build_name_variants(alias_target) & candidate_variants:
@@ -471,3 +580,19 @@ def normalize_team_name(name: str) -> str:
 def strip_generic_tokens(name: str) -> str:
     tokens = [token for token in name.split() if token not in GENERIC_TEAM_TOKENS]
     return " ".join(tokens)
+
+
+def normalize_competition_code(code: str) -> str:
+    return COMPETITION_CODE_ALIASES.get(code, code)
+
+
+def _variant_phrase_match(expected: str, candidate: str) -> bool:
+    expected = expected.strip()
+    candidate = candidate.strip()
+    if not expected or not candidate:
+        return False
+    if len(expected) >= 5 and re.search(rf"\b{re.escape(expected)}\b", candidate):
+        return True
+    if len(candidate) >= 5 and re.search(rf"\b{re.escape(candidate)}\b", expected):
+        return True
+    return False
