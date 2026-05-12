@@ -34,6 +34,7 @@ def choose_two_picks(
         pick for pick in eligible
         if adjusted_odds_for_bookmaker(pick.odds) >= OFFICIAL_MIN_LEG_ODDS
         and pick.market not in LOW_VALUE_MARKETS
+        and not _should_hold_aggressive_official_pick(pick)
     ]
     if official_eligible:
         eligible = official_eligible
@@ -307,6 +308,8 @@ def effective_threshold(pick: Pick, market_calibrations: dict[str, MarketCalibra
 def should_reject_pick(pick: Pick, market_calibrations: dict[str, MarketCalibration] | None = None) -> bool:
     calibration = market_calibrations.get(pick.market) if market_calibrations else None
     effective_odds = adjusted_odds_for_bookmaker(pick.odds)
+    if _should_hold_aggressive_official_pick(pick):
+        return True
     if calibration and not calibration.enabled:
         return True
     if not market_needs_extra_evidence(pick.market, calibration):
@@ -350,3 +353,16 @@ def _value_penalty(pick: Pick) -> float:
     if effective_odds < OFFICIAL_MIN_LEG_ODDS:
         penalty += min(0.10, (OFFICIAL_MIN_LEG_ODDS - effective_odds) * 1.6)
     return penalty
+
+
+def _should_hold_aggressive_official_pick(pick: Pick) -> bool:
+    if pick.market != "Gana local":
+        return False
+    effective_odds = adjusted_odds_for_bookmaker(pick.odds)
+    if pick.context_penalty >= 0.03:
+        return True
+    if pick.market_stability < 0.66:
+        return True
+    if pick.risk_score >= 0.10 and effective_odds <= 1.52:
+        return True
+    return False
