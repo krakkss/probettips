@@ -12,6 +12,8 @@ from probettips.models import Match, Pick
 
 RSS_BASE_URL = "https://news.google.com/rss/search"
 MAX_HEADLINES_PER_TEAM = 5
+MATCH_CONTEXT_MAX_PENALTY = 0.07
+TEAM_CONTEXT_MAX_PENALTY = 0.05
 
 AVAILABILITY_KEYWORDS = (
     "injury",
@@ -85,7 +87,7 @@ class TeamNewsContextProvider:
         for match in matches:
             home_penalty, home_alerts = self._team_context(match.home_team)
             away_penalty, away_alerts = self._team_context(match.away_team)
-            penalty = min(0.10, home_penalty + away_penalty)
+            penalty = min(MATCH_CONTEXT_MAX_PENALTY, home_penalty + away_penalty)
             alerts = home_alerts + away_alerts
             contexts[match.match_id] = MatchContext(
                 match_id=match.match_id,
@@ -120,12 +122,13 @@ class TeamNewsContextProvider:
             if any(keyword in normalized_title for keyword in INSTABILITY_KEYWORDS):
                 instability_hits += 1
 
+        availability_score = min(availability_hits, 2) * 0.015
+        severe_score = min(severe_availability_hits, 2) * 0.008
+        rotation_score = min(rotation_hits, 2) * 0.006
+        instability_score = min(instability_hits, 2) * 0.005
         penalty = min(
-            0.08,
-            (availability_hits * 0.02)
-            + (severe_availability_hits * 0.01)
-            + (rotation_hits * 0.012)
-            + (instability_hits * 0.008),
+            TEAM_CONTEXT_MAX_PENALTY,
+            availability_score + severe_score + rotation_score + instability_score,
         )
 
         alerts: list[str] = []
@@ -178,10 +181,10 @@ def apply_match_context_to_picks(picks: list[Pick], match_contexts: dict[str, Ma
             adjusted.append(pick)
             continue
 
-        adjusted_probability = max(0.01, min(0.99, pick.probability - (context.penalty * 0.55)))
-        adjusted_confidence = max(0.35, min(0.99, pick.confidence - (context.penalty * 0.85)))
-        adjusted_risk = min(0.99, pick.risk_score + (context.penalty * 0.90))
-        adjusted_threshold = min(0.98, pick.dynamic_threshold + (context.penalty * 0.35))
+        adjusted_probability = max(0.01, min(0.99, pick.probability - (context.penalty * 0.38)))
+        adjusted_confidence = max(0.35, min(0.99, pick.confidence - (context.penalty * 0.55)))
+        adjusted_risk = min(0.99, pick.risk_score + (context.penalty * 0.55))
+        adjusted_threshold = min(0.98, pick.dynamic_threshold + (context.penalty * 0.22))
         adjusted_rationale = f"{pick.rationale} Contexto reciente detectado: {' '.join(context.alerts)}"
 
         adjusted.append(

@@ -21,13 +21,17 @@ COMPETITIONS = {
     "FL1": "Ligue 1",
     "PL": "Premier League",
     "PPL": "Primeira Liga",
+    "DED": "Eredivisie",
+    "BPL": "Jupiler Pro League",
+    "TSL": "Super Lig",
+    "SPL": "Premiership",
 }
 
 COMPETITION_CODE_ALIASES = {
     "LL": "PD",
 }
 
-DEFAULT_COMPETITIONS = ["PD", "SD", "BL1", "SA", "FL1", "PL", "PPL"]
+DEFAULT_COMPETITIONS = ["PD", "SD", "BL1", "SA", "FL1", "PL", "PPL", "DED", "BPL", "TSL", "SPL"]
 
 
 class FootballDataProvider:
@@ -211,6 +215,22 @@ FLASHSCORE_LEAGUES = {
         "league": "Primeira Liga",
         "url": "https://www.flashscore.com/football/portugal/liga-portugal/fixtures/",
     },
+    "DED": {
+        "league": "Eredivisie",
+        "url": "https://www.flashscore.com/football/netherlands/eredivisie/fixtures/",
+    },
+    "BPL": {
+        "league": "Jupiler Pro League",
+        "url": "https://www.flashscore.com/football/belgium/jupiler-pro-league/fixtures/",
+    },
+    "TSL": {
+        "league": "Super Lig",
+        "url": "https://www.flashscore.com/football/turkey/super-lig/fixtures/",
+    },
+    "SPL": {
+        "league": "Premiership",
+        "url": "https://www.flashscore.com/football/scotland/premiership/fixtures/",
+    },
 }
 
 
@@ -242,6 +262,22 @@ SOCCERWAY_LEAGUES = {
     "PPL": {
         "league": "Primeira Liga",
         "url": "https://es.soccerway.com/portugal/liga-portugal/",
+    },
+    "DED": {
+        "league": "Eredivisie",
+        "url": "https://es.soccerway.com/netherlands/eredivisie/",
+    },
+    "BPL": {
+        "league": "Jupiler Pro League",
+        "url": "https://es.soccerway.com/belgium/pro-league/",
+    },
+    "TSL": {
+        "league": "Super Lig",
+        "url": "https://es.soccerway.com/turkey/super-lig/",
+    },
+    "SPL": {
+        "league": "Premiership",
+        "url": "https://es.soccerway.com/scotland/premiership/",
     },
 }
 

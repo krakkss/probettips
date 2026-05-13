@@ -112,7 +112,7 @@ def choose_shadow_picks(
     min_probability: float = 0.72,
     min_confidence: float = 0.62,
 ) -> tuple[list[Pick], str | None]:
-    eligible = _eligible_picks(picks, market_calibrations, min_probability, min_confidence)
+    eligible = _shadow_eligible_picks(picks, market_calibrations, min_probability, min_confidence)
     eligible.sort(key=lambda item: composite_pick_score(item, market_calibrations), reverse=True)
     if not eligible:
         return [], None
@@ -212,6 +212,30 @@ def _eligible_picks(
         and effective_probability(pick, market_calibrations) >= effective_threshold(pick, market_calibrations)
         and not should_reject_pick(pick, market_calibrations)
     ]
+
+
+def _shadow_eligible_picks(
+    picks: list[Pick],
+    market_calibrations: dict[str, MarketCalibration] | None,
+    min_probability: float,
+    min_confidence: float,
+) -> list[Pick]:
+    eligible: list[Pick] = []
+    for pick in picks:
+        probability = effective_probability(pick, market_calibrations)
+        threshold = effective_threshold(pick, market_calibrations)
+        if probability < min_probability:
+            continue
+        if pick.confidence < max(min_confidence, 0.78):
+            continue
+        if pick.risk_score > 0.10:
+            continue
+        if pick.context_penalty > 0.07:
+            continue
+        if should_reject_pick(pick, market_calibrations) and probability < threshold - 0.17:
+            continue
+        eligible.append(pick)
+    return eligible
 
 
 def composite_pick_score(pick: Pick, market_calibrations: dict[str, MarketCalibration] | None = None) -> float:
